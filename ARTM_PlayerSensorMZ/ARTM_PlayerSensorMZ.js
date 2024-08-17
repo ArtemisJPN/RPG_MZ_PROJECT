@@ -7,7 +7,7 @@
 // [Version]
 // 1.0.0 初版
 // 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
-// 1.0.2 未使用関数の削除、関数名を一部変更（MKR⇒ARTM）
+// 1.0.3 直線探索描画の不備を修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -2843,12 +2843,12 @@
                     width = tileWidth * sensorRange + tileWidth;
                     height = tileHeight * bias;
                     this.anchor.x = 0;
-                    this.anchor.y = 0.5;
+                    this.anchor.y = 1;
                 } else if (direction === DIR_LEFT) {
                     width = tileWidth * sensorRange + tileWidth;
                     height = tileHeight * bias;
                     this.anchor.x = 1;
-                    this.anchor.y = 0.5;
+                    this.anchor.y = 1;
                 } else if (direction === DIR_DOWN) {
                     width = tileWidth * bias;
                     height = tileHeight * sensorRange + tileHeight;
@@ -2952,12 +2952,12 @@
                     width = tileWidth * sensorRange + tileWidth;
                     height = tileHeight * bias;
                     this.anchor.x = 0;
-                    this.anchor.y = 0.5;
+                    this.anchor.y = 1;
                 } else if (direction === DIR_LEFT) {
                     width = tileWidth * sensorRange + tileWidth;
                     height = tileHeight * bias;
                     this.anchor.x = 1;
-                    this.anchor.y = 0.5;
+                    this.anchor.y = 1;
                 } else if (direction === DIR_DOWN) {
                     width = tileWidth * bias;
                     height = tileHeight * sensorRange + tileHeight;
@@ -3146,28 +3146,28 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = cy - Math.abs(coordinates[0][num]) * tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_RIGHT) {
             if (coordinates && cnt === 1) {
                 num = 0;
                 cx = tileWidth / 2;
-                cy = height / 2;
+                cy = height;
                 distanceX = cx + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_LEFT) {
             if (coordinates && cnt === 1) {
                 num = 0;
                 cx = width - tileWidth / 2;
-                cy = height / 2 - tileHeight;
+                cy = height - tileHeight;
                 distanceX = cx - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy + tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_DOWN) {
             if (coordinates && cnt === 1) {
@@ -3176,8 +3176,8 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = cy + Math.abs(coordinates[0][num]) * tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         }
         context.fill();
@@ -3211,8 +3211,8 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = height - tileHeight - Math.abs(coordinates[0][num]) * tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3227,7 +3227,7 @@
                     cy = height - tileHeight * i;
                     distanceX = cx + tileWidth * signChange(sign);
                     distanceY = height - tileHeight - Math.abs(coordinates[j][num]) * tileHeight;
-                    this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_RIGHT) {
@@ -3238,8 +3238,8 @@
                 cy = height / 2;
                 distanceX = tileWidth / 2 + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3255,7 +3255,7 @@
                     cy -= tileHeight / 2;
                     distanceX = tileWidth / 2 + Math.abs(coordinates[j][num]) * tileWidth ;
                     distanceY = cy + tileHeight * signChange(sign);
-                    this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_LEFT) {
@@ -3267,8 +3267,8 @@
                 distanceX = width - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceX -= tileWidth/ 2;
                 distanceY = cy - tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3284,7 +3284,7 @@
                     cy -= tileHeight / 2;
                     distanceX = width - tileWidth / 2 - Math.abs(coordinates[j][num]) * tileWidth;
                     distanceY = cy + tileHeight * signChange(sign);
-                    this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_DOWN) {
@@ -3295,8 +3295,8 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = Math.abs(coordinates[0][num]) * tileHeight;
-                this.mkrSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
-                this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
+                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3311,7 +3311,7 @@
                     cy = tileHeight * i - tileHeight;
                     distanceX = cx + tileWidth * signChange(sign);
                     distanceY = Math.abs(coordinates[j][num]) * tileHeight;
-                    this.mkrDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 }
             }
         }
@@ -3407,7 +3407,7 @@
         context.restore();
     };
 
-    Bitmap.prototype.mkrDrawLine = function(context, cx, cy, distanceX, distanceY) {
+    Bitmap.prototype.artmDrawLine = function(context, cx, cy, distanceX, distanceY) {
         const width = this.width;
         const height = this.height;
         const tileWidth = $gameMap.tileWidth();
@@ -3420,7 +3420,7 @@
         context.lineTo(cx, ly);
     };
 
-    Bitmap.prototype.mkrSideDrawLine = function(context, sideSensors) {
+    Bitmap.prototype.artmSideDrawLine = function(context, sideSensors) {
         const color = DefRangeColor[0];
         const width = this.width;
         const height = this.height;
@@ -3432,16 +3432,16 @@
         context.fillStyle = color;
         context.beginPath();
         if (sideSensors[0]) {
-            mkrSideDrawLineProc(context, d, tw, th)
+            artmSideDrawLineProc(context, d, tw, th)
         }
         if (sideSensors[1]) {
-            mkrSideDrawLineProc(context, 10 - d, tw, th)
+            artmSideDrawLineProc(context, 10 - d, tw, th)
         }
         context.fill();
         context.restore();
     };
     
-    function mkrSideDrawLineProc(context, d, tw, th) {
+    function artmSideDrawLineProc(context, d, tw, th) {
         const dirTable = {8:[0, th], 6:[tw, 0], 4:[tw, th * 2], 2:[tw * 2, th]};
         if (dirTable[d]) {
             const x1 = dirTable[d][0];
