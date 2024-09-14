@@ -8,6 +8,7 @@
 // 1.0.0 初版
 // 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
 // 1.0.3 直線探索描画の不備を修正
+// 1.1.0 パラメータ「発見状態の継続」を追加
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -604,11 +605,20 @@
  * @parent マップ設定
  *
  * @param Location_Reset
- * @text マップ移動時リセット
- * @desc 場所移動コマンド使用時、元のマップに配置された探索者の追跡状態をリセットするか設定します。(デフォルト:リセットしない)
+ * @text 場所移動時リセット
+ * @desc 場所移動時、元のマップに配置された探索者の追跡状態をリセットするか設定します。(デフォルト:リセットしない)
  * @type boolean
  * @on リセットする
  * @off リセットしない
+ * @default false
+ * @parent マップ設定
+ *
+ * @param Found_Keep
+ * @text 発見状態の継続
+ * @desc 場所移動時リセットが有効の場合、元のマップの発見状態を継続するか設定します。(デフォルト:継続しない)
+ * @type boolean
+ * @on 継続する
+ * @off 継続しない
  * @default false
  * @parent マップ設定
  *
@@ -1030,13 +1040,12 @@
 
     const Parameters = paramParse(PluginManager.parameters(PNAME));
     let DIR_UP, DIR_DOWN, DIR_RIGHT, DIR_LEFT,
-        DefSensorSwitch, DefBothSensor, DefRangeVisible,
-        DefTerrainDecision, DefRangeColor, DefRangeOpacity,
-        DefAutoSensor, DefEventDecision, DefRegionDecisions,
-        DefRealRangeX, DefRealRangeY, DefLostSensorSwitch,
-        DefFoundBallon, DefFoundCommon, DefFoundDelay, DefFoundSe,
-        DefLostBallon, DefLostCommon, DefLostDelay, DefLostSe,
-        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset;
+        DefSensorSwitch, DefBothSensor, DefRangeVisible, DefTerrainDecision, DefRangeColor,
+        DefRangeOpacity, DefAutoSensor, DefEventDecision, DefRegionDecisions,
+        DefRealRangeX, DefRealRangeY, DefLostSensorSwitch, DefFoundBallon, DefFoundCommon,
+        DefFoundDelay, DefFoundSe, DefLostBallon, DefLostCommon, DefLostDelay, DefLostSe,
+        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefFoundKeep;
+        TmpFoundStateList = {};
     DefSensorSwitch = CheckParam("switch", "Sensor_Switch", Parameters["Sensor_Switch"], "D");
     DefLostSensorSwitch = CheckParam("switch", "Lost_Sensor_Switch", Parameters["Lost_Sensor_Switch"]);
     DefBothSensor = CheckParam("bool", "Both_Sensor", Parameters["Both_Sensor"], false);
@@ -1074,6 +1083,7 @@
     DefTrackingPriority = CheckParam("bool", "Tracking_Priority", Parameters["Tracking_Priority"], false);
     DefFollowerThrough = CheckParam("bool", "Follower_Through", Parameters["Follower_Through"], false);
     DefLocationReset = CheckParam("bool", "Location_Reset", Parameters["Location_Reset"], false);
+    DefFoundKeep = CheckParam("bool", "Found_Keep", Parameters["Found_Keep"], false);
 
     DIR_UP = 8;
     DIR_DOWN = 2;
@@ -1423,6 +1433,13 @@
             !$gameParty.inBattle() &&
             !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
+        } else {
+            const baseKey = $gameMap.mapId() + "_";
+            $gameMap.events().forEach(event => {
+              if (DefFoundKeep[0] && event.isSensorFound()) {
+                TmpFoundStateList[baseKey + event.event().id] = event;
+              }
+            });
         }
         _Game_Player_reserveTransfer.apply(this, arguments);
     };
@@ -1828,6 +1845,16 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
+        const baseKey = this.mapId() + "_";
+        this.events().forEach(event => {
+            const eventId = event.event().id;
+            const key =  baseKey + eventId;
+            if (TmpFoundStateList[key]) {
+                this._events[eventId] = TmpFoundStateList[key];
+                delete TmpFoundStateList[key];
+            }
+        }, this);
+
     };
 
     //=========================================================================
