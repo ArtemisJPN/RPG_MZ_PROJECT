@@ -9,6 +9,7 @@
 // 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
 // 1.0.3 直線探索描画の不備を修正
 // 1.1.0 パラメータ「発見状態の継続」を追加
+// 1.1.1 「扇範囲の探索」の移植不備を修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -2331,7 +2332,7 @@
                         continue;
                     }
                     if (px <= rex + coordinates[i][0] + realX &&
-                        px >= rex + coordinates[i][0] - realX &&
+                        px >= rex - coordinates[i][0] - realX &&
                         py <= rey - Math.abs(coordinates[i][0]) + realY &&
                         py >= rey + coordinates[i][1] - realY) {
                         return true;
@@ -2394,7 +2395,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (py >= rey + coordinates[i][1] - realY &&
+                    if (py >= rey - coordinates[i][1] - realY &&
                         py <= rey + coordinates[i][1] + realY &&
                         px >= rex + Math.abs(coordinates[i][1]) - realX &&
                         px <= rex + coordinates[i][0] + realX) {
@@ -2459,7 +2460,7 @@
                         continue;
                     }
                     if (py <= rey + coordinates[i][1] + realY &&
-                        py >= rey + coordinates[i][1] - realY &&
+                        py >= rey - coordinates[i][1] - realY &&
                         px <= rex - Math.abs(coordinates[i][1]) + realX &&
                         px >= rex + coordinates[i][0] - realX) {
                         return true;
@@ -2522,7 +2523,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (px >= rex + coordinates[i][0] - realX &&
+                    if (px >= rex - coordinates[i][0] - realX &&
                         px <= rex + coordinates[i][0] + realX &&
                         py >= rey + Math.abs(coordinates[i][0]) - realY &&
                         py <= rey + coordinates[i][1] + realY) {
