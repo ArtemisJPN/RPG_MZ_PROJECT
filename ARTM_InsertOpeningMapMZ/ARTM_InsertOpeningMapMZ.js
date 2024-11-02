@@ -1,4 +1,4 @@
-// ===================================================
+//===================================================
 // ARTM_InsertOpeningMapMZ
 // Copyright (c) 2021 Artemis
 // This software is released under the MIT license.
@@ -6,13 +6,14 @@
 // ===================================================
 // [Version]
 // 1.0.0 初版
-// =================================================================
+// 1.0.1 スキップ時の不備を修正
+
 /*:ja
  * @target MZ
  * @plugindesc タイトル前にOPを挿入するMZ専用プラグイン
  * @author Artemis
  *
- * @help ARTM_InsertOpeningMapMZ
+ * @help ARTM_InsertOpeningMapMZ.js
  *
  * タイトル前にOPを挿入するMZ専用プラグインです。
  *
@@ -182,24 +183,20 @@
             _Game_Map_updateInterpreter.call(this);
             return;
         }
-        const waitMode = this._interpreter._waitMode;
-        if (waitMode !== "") {
-            const inputState = TouchInput.isPressed() || Input._latestButton;
-            _isStart = true;
-            if (_canSkip && inputState) {
-                _isQuit = true;
-                if (Video.isPlaying()) {
-                    Video._onEnd();
-                    AudioManager.stopBgm();
-                    _durationMax = 15;
-                    _duration = _durationMax;
-                }
-                if ($gameMap.events().length > 0) {
-                    $gameMap.eraseEvent($gameMap._interpreter._eventId);
-                }
-                fncGameMapUpdateInterpreter();
+        const inputState = TouchInput.isPressed() || Input._latestButton;
+        if (_canSkip && inputState) {
+            _isQuit = true;
+            if (Video.isPlaying()) {
+                Video._onEnd();
+                AudioManager.stopBgm();
+                _durationMax = 15;
+                _duration = _durationMax;
             }
-        } else if (_isQuit) {
+            if ($gameMap.events().length > 0) {
+                $gameMap.eraseEvent($gameMap._interpreter._eventId);
+            }
+        }
+        if (_isQuit) {
             SceneManager._scene._menuEnabled = false;
             SceneManager._scene._menuButton = false;
             fncGameMapUpdateInterpreter();
