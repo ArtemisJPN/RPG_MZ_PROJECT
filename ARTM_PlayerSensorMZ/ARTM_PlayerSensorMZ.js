@@ -2331,7 +2331,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (px <= rex + coordinates[i][0] + realX &&
+                    if (px <= rex - coordinates[i][0] + realX &&
                         px >= rex - coordinates[i][0] - realX &&
                         py <= rey - Math.abs(coordinates[i][0]) + realY &&
                         py >= rey + coordinates[i][1] - realY) {
@@ -2395,7 +2395,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (py >= rey - coordinates[i][1] - realY &&
+                    if (py >= rey + coordinates[i][1] - realY &&
                         py <= rey + coordinates[i][1] + realY &&
                         px >= rex + Math.abs(coordinates[i][1]) - realX &&
                         px <= rex + coordinates[i][0] + realX) {
@@ -2459,7 +2459,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (py <= rey + coordinates[i][1] + realY &&
+                    if (py <= rey - coordinates[i][1] + realY &&
                         py >= rey - coordinates[i][1] - realY &&
                         px <= rex - Math.abs(coordinates[i][1]) + realX &&
                         px >= rex + coordinates[i][0] - realX) {
@@ -2523,7 +2523,7 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (px >= rex - coordinates[i][0] - realX &&
+                    if (px >= rex + coordinates[i][0] - realX &&
                         px <= rex + coordinates[i][0] + realX &&
                         py >= rey + Math.abs(coordinates[i][0]) - realY &&
                         py <= rey + coordinates[i][1] + realY) {
