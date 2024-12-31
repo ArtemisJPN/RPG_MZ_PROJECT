@@ -1,6 +1,6 @@
 // ===================================================
 // ARTM_PlayerSensorMZ.js
-// Copyright (c) 2021 Artemis
+// Copyright (c) 2024 Artemis
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // -------------
@@ -9,6 +9,7 @@
 // 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
 // 1.0.3 直線探索描画の不備を修正
 // 1.1.0 パラメータ「発見状態の継続」を追加
+// 1.1.1 プレイヤー発見時の軽微な修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -24,8 +25,9 @@
  *
  * @help ARTM_PlayerSensorMZ
  *
- * マンカインド様作、プレイヤー探索プラグインのMZ移植版です。
- * 基本的な動きは変わっておりません。
+ * マンカインド様作、プレイヤー探索プラグインver.3.0.0のMZ移植版です。
+ * MKR_PlayerSensor ver.3.0.0 までの基本的な動きは変わっておりません。
+ * MKR_PlayerSensor ver.3.0.1 以降は移植対象外ですのでご了承下さい。
  *
  * - 使用方法 -
  * 対象イベント(以下、探索者)の視界の範囲を描画し、
@@ -1864,9 +1866,13 @@
     //=========================================================================
     const _Game_EventSetupPageSettings = Game_Event.prototype.setupPageSettings;
     Game_Event.prototype.setupPageSettings = function() {
+        const direction = this.direction();
         _Game_EventSetupPageSettings.call(this);
         if (this.getSensorStatus() === -2) {
             this.setupSensor();
+        }
+        if (this.getSensorStatus() === 1) {
+            this.setDirection(direction);
         }
     };
 
