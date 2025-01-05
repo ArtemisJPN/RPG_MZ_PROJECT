@@ -1435,10 +1435,10 @@
             !$gameParty.inBattle() &&
             !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
-        } else {
+        } else if (DefFoundKeep[0]) {
             const baseKey = $gameMap.mapId() + "_";
             $gameMap.events().forEach(event => {
-              if (DefFoundKeep[0] && event.isSensorFound()) {
+              if (event.isSensorFound()) {
                 TmpFoundStateList[baseKey + event.event().id] = event;
               }
             });
@@ -1847,16 +1847,17 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
-        const baseKey = this.mapId() + "_";
-        this.events().forEach(event => {
-            const eventId = event.event().id;
-            const key =  baseKey + eventId;
-            if (TmpFoundStateList[key]) {
-                this._events[eventId] = TmpFoundStateList[key];
-                delete TmpFoundStateList[key];
-            }
-        }, this);
-
+        if (DefFoundKeep[0]) {
+            const baseKey = this.mapId() + "_";
+            this.events().forEach(event => {
+                const eventId = event.event().id;
+                const key =  baseKey + eventId;
+                if (TmpFoundStateList[key]) {
+                    this._events[eventId] = TmpFoundStateList[key];
+                    delete TmpFoundStateList[key];
+                }
+            }, this);
+        }
     };
 
     //=========================================================================
