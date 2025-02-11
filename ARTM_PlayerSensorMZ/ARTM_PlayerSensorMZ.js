@@ -10,6 +10,7 @@
 // 1.0.3 直線探索描画の不備を修正
 // 1.1.0 パラメータ「発見状態の継続」を追加
 // 1.1.1 プレイヤー発見時の軽微な修正
+// 1.1.2 扇範囲の探索で範囲内移動中に発見状態が外れる不備を修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -2259,6 +2260,46 @@
         return false;
     };
 
+    // 予測判定処理（扇範囲の探索用）
+    const testSensorFanDir = {
+        "8":{
+            "8":((x, realX, _x) => false),"2":((x, realX, _x) => false),
+            "6":((x, realX, _x) => {
+                _x = Math.ceil(_x);return _x <= x + realX && _x >= x - realX;
+            }),
+            "4":((x, realX, _x) => {
+                _x = Math.floor(_x);return _x <= x - realX && _x >= x + realX;
+            })
+        },
+        "6":{
+            "6":((y, realY, _y) => false),"4":((y, realY, _y) => false),
+            "8":((y, realY, _y) => {
+                _y = Math.floor(_y);return _y >= y - realY && _y <= y + realY;
+            }),
+            "2":((y, realY, _y) => {
+                _y = Math.ceil(_y);return _y >= y - realY && _y <= y + realY;
+            })
+        },
+        "4":{
+            "6":((y, realY, _y) => false),"4":((y, realY, _y) => false),
+            "8":((y, realY, _y) => {
+                _y = Math.floor(_y);return _y <= y + realY && _y >= y - realY;
+            }),
+            "2":((y, realY, _y) => {
+                _y = Math.ceil(_y);return _y <= y + realY && _y >= y - realY;
+            })
+        },
+        "2":{
+            "8":((x, realX, _x) => false),"2":((x, realX, _x) => false),
+            "6":((x, realX, _x) => {
+                _x = Math.ceil(_x);return _x >= x - realX && _x <= x + realX;
+            }),
+            "4":((x, realX, _x) => {
+                _x = Math.floor(_x);return _x >= x - realX && _x <= x + realX;
+            })
+        }
+    };
+
     // 扇範囲の探索
     Game_Event.prototype.sensorFan = function() {
         const sensorRange = this.getSensorRange();
@@ -2275,6 +2316,8 @@
         const terrainDecision = CEC(DefTerrainDecision);
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
+        const isSensorFound = this.isSensorFound();
+        const playerDir = ""+$gamePlayer.direction();
         let sign, strDir, diagoDir, noPass, noPassTemp, coordinates, cnt;
         noPass = 0;
         // currentRange初期化
@@ -2337,11 +2380,19 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (px <= rex + coordinates[i][0] + realX &&
-                        px >= rex + coordinates[i][0] - realX &&
-                        py <= rey - Math.abs(coordinates[i][0]) + realY &&
-                        py >= rey + coordinates[i][1] - realY) {
+                    const checkX =
+                        (px <= rex + coordinates[i][0] + realX) &&
+                        (px >= rex + coordinates[i][0] - realX);
+                    const checkY =
+                        py <= (rey - Math.abs(coordinates[i][0]) + realY) &&
+                        py >= (rey + coordinates[i][1] - realY);
+                    if (checkX && checkY) {
                         return true;
+                    } else if (isSensorFound && checkY) {
+                        // 予測判定を行う
+                        if (testSensorFanDir["8"][playerDir](rex + coordinates[i][0], realX, px)) {
+                            return true;
+                        }
                     }
                 }
                 break;
@@ -2401,11 +2452,19 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (py >= rey + coordinates[i][1] - realY &&
-                        py <= rey + coordinates[i][1] + realY &&
-                        px >= rex + Math.abs(coordinates[i][1]) - realX &&
-                        px <= rex + coordinates[i][0] + realX) {
-                         return true;
+                    const checkY =
+                        py >= (rey + coordinates[i][1] - realY) &&
+                        py <= (rey + coordinates[i][1] + realY);
+                    const checkX =
+                        px >= (rex + Math.abs(coordinates[i][1]) - realX) &&
+                        px <= (rex + coordinates[i][0] + realX);
+                    if (checkY && checkX) {
+                        return true;
+                    } else if (isSensorFound && checkX) {
+                        // 予測判定を行う
+                        if (testSensorFanDir["6"][playerDir](rey + coordinates[i][1], realY, py)) {
+                            return true;
+                        }
                     }
                 }
                 break;
@@ -2465,11 +2524,19 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (py <= rey + coordinates[i][1] + realY &&
-                        py >= rey + coordinates[i][1] - realY &&
-                        px <= rex - Math.abs(coordinates[i][1]) + realX &&
-                        px >= rex + coordinates[i][0] - realX) {
+                    const checkY =
+                        py <= (rey + coordinates[i][1] + realY) &&
+                        py >= (rey + coordinates[i][1] - realY);
+                    const checkX =
+                        px <= (rex - Math.abs(coordinates[i][1]) + realX) &&
+                        px >= (rex + coordinates[i][0] - realX);
+                    if (checkY && checkX) {
                         return true;
+                    } else if (isSensorFound && checkX) {
+                        // 予測判定を行う
+                        if (testSensorFanDir["4"][playerDir](rey + coordinates[i][1], realY, py)) {
+                            return true;
+                        }
                     }
                 }
                 break;
@@ -2529,11 +2596,19 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    if (px >= rex + coordinates[i][0] - realX &&
-                        px <= rex + coordinates[i][0] + realX &&
-                        py >= rey + Math.abs(coordinates[i][0]) - realY &&
-                        py <= rey + coordinates[i][1] + realY) {
-                         return true;
+                    const checkY =
+                        py >= (rey + Math.abs(coordinates[i][0]) - realY) &&
+                        py <= (rey + coordinates[i][1] + realY);
+                    const checkX =
+                        px >= (rex + coordinates[i][0] - realX) &&
+                        px <= (rex + coordinates[i][0] + realX);
+                    if (checkY && checkX) {
+                        return true;
+                    } else if (isSensorFound && checkY) {
+                        // 予測判定を行う
+                        if (testSensorFanDir["2"][playerDir](rex + coordinates[i][0], realX, px)) {
+                            return true;
+                        }
                     }
                 }
         }
@@ -2579,6 +2654,8 @@
         }
     }
 
+    const BIAS_VALUE = .9999; // 予測判定用の最大バイアス値
+
     Game_Event.prototype.isSideSearch = function(directionR, directionL, vx, vy) {
         const bothSensor = CEC(DefBothSensor);
         const terrainDecision = CEC(DefTerrainDecision);
@@ -2586,8 +2663,14 @@
         const realY = DefRealRangeY[0];
         const sx = this.deltaXFrom($gamePlayer._realX);
         const sy = this.deltaYFrom($gamePlayer._realY);
+        const key = ""+$gamePlayer.direction() + vx + vy;
         const ex = this.x;
         const ey = this.y;
+        // 予測判定用のバイアス値テーブル
+        const biasX = [{"60-1":-BIAS_VALUE,"40-1":-BIAS_VALUE}[key] ?? 0,
+                        {"401":BIAS_VALUE,"601":BIAS_VALUE}[key] ?? 0];
+        const biasY = [{"210":-BIAS_VALUE,"810":-BIAS_VALUE}[key] ?? 0,
+                        {"8-10":BIAS_VALUE,"2-10":BIAS_VALUE}[key] ?? 0];
         if (this.getBothSensor() === -1 && bothSensor) {
             if (this.getTerrainDecision() === 1
                     || (this.getTerrainDecision() === -1 && terrainDecision)) {
@@ -2611,15 +2694,15 @@
             this.setBothSensorLeft(false);
         }
         if (this.getBothSensorRight() &&
-           sx >= vx - realX && sx <= vx + realX &&
-           sy >= vy - realY && sy <= vy + realY) {
+           sx >= vx + biasX[0] - realX && sx <= vx + biasX[1] + realX &&
+           sy >= vy + biasY[0] - realY && sy <= vy + biasY[1] + realY) {
             return true;
         }
         vx = vx === 0 ? vx : -vx;
         vy = vy === 0 ? vy : -vy;
         if (this.getBothSensorLeft() &&
-           sx >= vx - realX && sx <= vx + realX &&
-           sy >= vy - realY && sy <= vy + realY) {
+           sx >= vx + biasX[0] - realX && sx <= vx + biasX[1] + realX &&
+           sy >= vy + biasY[0] - realY && sy <= vy + biasY[1] + realY) {
             return true;
         }
         return false;
@@ -2777,7 +2860,7 @@
         sprite.anchor.x = 0;
         sprite.anchor.y = 0;      
         sprite.visible = true;
-        bsprite._spriteSD = sprite;
+        bsprite._spriteSide = sprite;
         spriteset._tilemap.addChild(sprite);
     }
     //=========================================================================
@@ -2815,7 +2898,7 @@
         const rangeVisible = this._character.getRangeVisible();
         const defVisible = ConvSw(DefRangeVisible[0]);
         if (this._character && this._character._erased) {
-            this.parent.removeChild(this._spriteSD);
+            this.parent.removeChild(this._spriteSide);
             this.parent.removeChild(this);
         }
         if (this._character &&
@@ -2841,10 +2924,10 @@
                  this.createBitmap();
              }
             this.visible = true;
-            this._spriteSD.visible = true;
+            this._spriteSide.visible = true;
         } else {
             this.visible = false;
-            this._spriteSD.visible = false;
+            this._spriteSide.visible = false;
         }
     };
 
@@ -2890,8 +2973,8 @@
                     this.anchor.y = 0;
                 }
                 this.bitmap = new Bitmap(width, height);
-                this._spriteSD.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
-                this.bitmap.fillViewRangeLine(color, this._character, this._spriteSD);
+                this._spriteSide.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
+                this.bitmap.fillViewRangeLine(color, this._character, this._spriteSide);
                 break;
             case "f":
                 if (direction === DIR_UP) {
@@ -2918,8 +3001,8 @@
                 }
                 this.bitmap = new Bitmap(width, height);
                 if (sensorType === "f") {
-                    this._spriteSD.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
-                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSD);
+                    this._spriteSide.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
+                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
                 } else {
                     this.bitmap.fillViewRangeFrontDiamond(color, this._character);
                 }
@@ -3002,8 +3085,8 @@
                     this.bitmap.clear();
                     this.bitmap = new Bitmap(width, height);
                 }
-                this._spriteSD.bitmap.clear();
-                this.bitmap.fillViewRangeLine(color, this._character, this._spriteSD);
+                this._spriteSide.bitmap.clear();
+                this.bitmap.fillViewRangeLine(color, this._character, this._spriteSide);
                 break;
             case "f":
                 if (direction === DIR_UP) {
@@ -3032,8 +3115,8 @@
                     this.bitmap = new Bitmap(width, height);
                 }
                 if (sensorType === "f") {
-                    this._spriteSD.bitmap.clear();
-                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSD);
+                    this._spriteSide.bitmap.clear();
+                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
                 } else {
                     this.bitmap.fillViewRangeFrontDiamond(color, this._character);
                 }
@@ -3075,49 +3158,49 @@
         const tileHeight = $gameMap.tileHeight();
         const cx = this._character.screenX();
         const cy = this._character.screenY();
-        const posSD = calcPositionSD(this);
+        const posSide = calcPositionSide(this);
         const bias = 6; // 位置微調整
         this.x = cx;
         this.y = cy;
-        this._spriteSD.x = posSD.x;
-        this._spriteSD.y = posSD.y;
+        this._spriteSide.x = posSide.x;
+        this._spriteSide.y = posSide.y;
         switch(sensorType) {
             case "l":
                 if (direction === DIR_UP) {
                     this.y = cy + bias;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_RIGHT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSD.x = posSD.x;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.x = posSide.x;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_LEFT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSD.x = posSD.x;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.x = posSide.x;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_DOWN) {
                     this.y = cy + bias;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.y = posSide.y + bias;
                 }
                 break;
             case "f":
                 if (direction === DIR_UP) {
                     this.y = cy + bias;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_RIGHT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSD.x = posSD.x;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.x = posSide.x;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_LEFT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSD.x = posSD.x;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.x = posSide.x;
+                    this._spriteSide.y = posSide.y + bias;
                 } else if (direction === DIR_DOWN) {
                     this.y = cy + bias;
-                    this._spriteSD.y = posSD.y + bias;
+                    this._spriteSide.y = posSide.y + bias;
                 }
                 break;
             case "df":
@@ -3136,7 +3219,7 @@
         }
     };
 
-    function calcPositionSD(bsprite) {
+    function calcPositionSide(bsprite) {
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
         const event = bsprite._character;
@@ -3154,10 +3237,10 @@
     // Bitmap
     //  探索者の視界範囲を表す図形を描画させる処理を追加定義します。
     //=========================================================================
-    Bitmap.prototype.fillViewRangeLine = function(color, character, spriteSD) {
+    Bitmap.prototype.fillViewRangeLine = function(color, character, spriteSide) {
         const _direction = character.direction();
         const context = this._context;
-        const contextSD = spriteSD.bitmap._context;
+        const contextSide = spriteSide.bitmap._context;
         const dirFixed = character.getDirectionFixed();
         const direction = dirFixed === -1 ? _direction : dirFixed;
         const width = this.width;
@@ -3180,7 +3263,7 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = cy - Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 8]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_RIGHT) {
@@ -3190,7 +3273,7 @@
                 cy = height;
                 distanceX = cx + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 6]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_LEFT) {
@@ -3200,7 +3283,7 @@
                 cy = height - tileHeight;
                 distanceX = cx - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy + tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 4]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_DOWN) {
@@ -3210,7 +3293,7 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = cy + Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 2]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
             }
         }
@@ -3218,10 +3301,10 @@
         context.restore();
     };
 
-    Bitmap.prototype.fillViewRangeFan = function(color, character, spriteSD) {
+    Bitmap.prototype.fillViewRangeFan = function(color, character, spriteSide) {
         const _direction = character.direction();
         const context = this._context;
-        const contextSD = spriteSD.bitmap._context;
+        const contextSide = spriteSide.bitmap._context;
         const width = this.width;
         const height = this.height;
         const tileWidth = $gameMap.tileWidth();
@@ -3245,7 +3328,7 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = height - tileHeight - Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 8]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 8]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
@@ -3272,7 +3355,7 @@
                 cy = height / 2;
                 distanceX = tileWidth / 2 + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 6]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 6]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
@@ -3301,7 +3384,7 @@
                 distanceX = width - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceX -= tileWidth/ 2;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 4]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 4]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
@@ -3329,7 +3412,7 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSD, [sideSensorL, sideSensorR, 2]);
+                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 2]);
                 this.artmDrawLine(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
@@ -3466,16 +3549,16 @@
         context.fillStyle = color;
         context.beginPath();
         if (sideSensors[0]) {
-            artmSideDrawLineProc(context, d, tw, th)
+            sideDrawLine(context, d, tw, th)
         }
         if (sideSensors[1]) {
-            artmSideDrawLineProc(context, 10 - d, tw, th)
+            sideDrawLine(context, 10 - d, tw, th)
         }
         context.fill();
         context.restore();
     };
     
-    function artmSideDrawLineProc(context, d, tw, th) {
+    function sideDrawLine(context, d, tw, th) {
         const dirTable = {8:[0, th], 6:[tw, 0], 4:[tw, th * 2], 2:[tw * 2, th]};
         if (dirTable[d]) {
             const x1 = dirTable[d][0];
