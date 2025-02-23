@@ -11,6 +11,9 @@
 // 1.1.0 パラメータ「発見状態の継続」を追加
 // 1.1.1 プレイヤー発見時の軽微な修正
 // 1.1.2 扇範囲の探索で範囲内移動中に発見状態が外れる不備を修正
+// 1.1.3 探索範囲セットアップ時の冗長処理を修正
+//       過去の改修箇所に一部コメントを追加
+// 1.1.4 ver1.1.2を斜め移動にも対応
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -23,12 +26,14 @@
  * @plugindesc プレイヤー探索プラグイン(MZ移植版)
  * @target MZ
  * @author Artemis
- *
  * @help ARTM_PlayerSensorMZ
  *
  * マンカインド様作、プレイヤー探索プラグインver.3.0.0のMZ移植版です。
  * MKR_PlayerSensor ver.3.0.0 までの基本的な動きは変わっておりません。
  * MKR_PlayerSensor ver.3.0.1 以降は移植対象外ですのでご了承下さい。
+ *
+ * 【重要】ご使用前に必ず下記URLの「本プラグイン使用時の注意点」をお読み下さい。
+ * https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_PlayerSensorMZ/README.md
  *
  * - 使用方法 -
  * 対象イベント(以下、探索者)の視界の範囲を描画し、
@@ -1047,8 +1052,8 @@
         DefRangeOpacity, DefAutoSensor, DefEventDecision, DefRegionDecisions,
         DefRealRangeX, DefRealRangeY, DefLostSensorSwitch, DefFoundBallon, DefFoundCommon,
         DefFoundDelay, DefFoundSe, DefLostBallon, DefLostCommon, DefLostDelay, DefLostSe,
-        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefFoundKeep;
-        TmpFoundStateList = {};
+        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefFoundKeep,
+        TmpFoundStateList = {}, IsRealUnder0_5;
     DefSensorSwitch = CheckParam("switch", "Sensor_Switch", Parameters["Sensor_Switch"], "D");
     DefLostSensorSwitch = CheckParam("switch", "Lost_Sensor_Switch", Parameters["Lost_Sensor_Switch"]);
     DefBothSensor = CheckParam("bool", "Both_Sensor", Parameters["Both_Sensor"], false);
@@ -1065,6 +1070,7 @@
     });
     DefRealRangeX = CheckParam("float", "Real_Range_X", Parameters["Real_Range_X"], 0.000, 0.000, 0.999);
     DefRealRangeY = CheckParam("float", "Real_Range_Y", Parameters["Real_Range_Y"], 0.000, 0.000, 0.999);
+    IsRealUnder0_5 = DefRealRangeX[0] < 0.5 || DefRealRangeY[0] < 0.5;
     DefFoundBallon = CheckParam("num", "Player_Found.Ballon", Parameters["Player_Found"]["Ballon"], 0, 0);
     DefFoundCommon = CheckParam("num", "Player_Found.Common_Event", Parameters["Player_Found"]["Common_Event"], 0, 0);
     DefFoundDelay = CheckParam("num", "Player_Found.Delay", Parameters["Player_Found"]["Delay"], 0, 0);
@@ -1096,8 +1102,8 @@
     //=========================================================================
     //  ・プレイヤー探索制御プラグインコマンドを定義
     //=========================================================================
-    function _eventId() {
-        return $gameTemp.getEventId_ARTM() || 0;
+    function eventId() {
+        return $gameTemp.getEventId_Artm() || 0;
     }
 
     function toAryArgs(args) {
@@ -1130,7 +1136,7 @@
     PluginManager.registerCommand(PNAME, "t_reset", args => {
         const sw_ids = toAryArgs(args.sw_ids);
         const slfsw_ids = toAryArgs(args.slfsw_ids);
-        $gameSystem.neutralSensor(_eventId(), [...sw_ids, ...slfsw_ids]);
+        $gameSystem.neutralSensor(eventId(), [...sw_ids, ...slfsw_ids]);
     });
 
     // 全探索者の強制ロスト
@@ -1140,17 +1146,17 @@
 
     // 対象探索者の強制ロスト
     PluginManager.registerCommand(PNAME, "t_lost", args => {
-        $gameSystem.forceLost(_eventId());
+        $gameSystem.forceLost(eventId());
     });
 
     // 対象探索者の探索開始
     PluginManager.registerCommand(PNAME, "t_start", args => {
-        $gameSystem.onSensor(_eventId());
+        $gameSystem.onSensor(eventId());
     });
 
     // 対象探索者の探索停止
     PluginManager.registerCommand(PNAME, "t_stop", args => {
-        $gameSystem.offSensor(_eventId());
+        $gameSystem.offSensor(eventId());
     });
 
     // 対象探索者をプレイヤーの位置付近まで移動
@@ -1165,21 +1171,34 @@
     const _Game_Temp_initialize = Game_Temp.prototype.initialize;
     Game_Temp.prototype.initialize = function() {
         _Game_Temp_initialize.call(this);
-        this._eventId_ARTM = 0;
+        this._eventId_Artm = 0;
+        this._playerPos_Artm = {};
     };
 
-    Game_Temp.prototype.getEventId_ARTM = function() {
-        return this._eventId_ARTM;
+    Game_Temp.prototype.getEventId_Artm = function() {
+        return this._eventId_Artm;
     };
 
-    Game_Temp.prototype.setEventId_ARTM = function(eventId) {
-        if (this.getEventId_ARTM() !== eventId) {
-            this._eventId_ARTM = eventId;
+    Game_Temp.prototype.setEventId_Artm = function(eventId) {
+        if (this.getEventId_Artm() !== eventId) {
+            this._eventId_Artm = eventId;
         }
     };
 
-    Game_Temp.prototype.getInterpreter_ARTM = function() {
+    Game_Temp.prototype.getInterpreter_Artm = function() {
         return $gameMap._interpreter;
+    };
+
+    // ver1.1.4：プレイヤー座標をイベントキーに紐づけて保持する
+    Game_Temp.prototype.hldPlayerPos_Artm = function(id) {
+        const pos = [$gamePlayer._realX, $gamePlayer._realY];
+        this._playerPos_Artm["" + id] = pos;
+    };
+
+    // ver1.1.4：プレイヤー座標をイベントキーから取得する
+    Game_Temp.prototype.playerPos_Artm = function(id, flag) {
+        const pos = this._playerPos_Artm["" + id] ?? [$gamePlayer._realX, $gamePlayer._realY];
+        return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
     //=========================================================================
@@ -1218,12 +1237,12 @@
     const _Game_Interpreter_setup = Game_Interpreter.prototype.setup;
     Game_Interpreter.prototype.setup = function(list, eventId) {
         _Game_Interpreter_setup.call(this, list, eventId);
-        $gameTemp.setEventId_ARTM(eventId);
+        $gameTemp.setEventId_Artm(eventId);
     };
 
     const _Game_Interpreter_executeCommand = Game_Interpreter.prototype.executeCommand;
     Game_Interpreter.prototype.executeCommand = function() {
-        $gameTemp.setEventId_ARTM(this.eventId());
+        $gameTemp.setEventId_Artm(this.eventId());
         return _Game_Interpreter_executeCommand.call(this);
     };
 
@@ -1436,6 +1455,7 @@
             !$gameParty.inBattle() &&
             !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
+        // ver1.1.0：マップID＋イベントIDをキーとして発見状態を保持しておく
         } else if (DefFoundKeep[0]) {
             const baseKey = $gameMap.mapId() + "_";
             $gameMap.events().forEach(event => {
@@ -1848,6 +1868,7 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
+        // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
         if (DefFoundKeep[0]) {
             const baseKey = this.mapId() + "_";
             this.events().forEach(event => {
@@ -1873,6 +1894,7 @@
         if (this.getSensorStatus() === -2) {
             this.setupSensor();
         }
+        // ver1.1.1：イベントが向きを変えずに蟹移動してしまう現象対策
         if (this.getSensorStatus() === 1) {
             this.setDirection(direction);
         }
@@ -2045,7 +2067,7 @@
                 $gameTemp.requestBalloon(this, this._foundBallon);
             }
             if (this._foundCommon > 0) {
-                const interpreter = $gameTemp.getInterpreter_ARTM();
+                const interpreter = $gameTemp.getInterpreter_Artm();
                 $gameTemp.reserveCommonEvent(this._foundCommon);
                 if (interpreter) {
                     interpreter.setupReservedCommonEvent();
@@ -2086,7 +2108,7 @@
                 $gameTemp.requestBalloon(this, this._lostBallon);
             }
             if (this._lostCommon > 0) {
-                const interpreter = $gameTemp.getInterpreter_ARTM();
+                const interpreter = $gameTemp.getInterpreter_Artm();
                 $gameTemp.reserveCommonEvent(this._lostCommon);
                 if (interpreter) {
                     interpreter.setupReservedCommonEvent();
@@ -2135,7 +2157,14 @@
             case "l": // 直線の探索
                 return this.sensorLine();
             case "f": // 扇範囲の探索
-                return this.sensorFan();
+                // ver1.1.4：プレイヤーリアル座標をイベントキーに紐づけて保持する
+                if (IsRealUnder0_5) {
+                    const ret = this.sensorFan();
+                    $gameTemp.hldPlayerPos_Artm(this.eventId());
+                    return ret;
+                } else {
+                    return this.sensorFan();
+                }
             case "s": // 四角範囲の探索
                 return this.sensorSquare();
             case "d": // 菱形範囲の探索
@@ -2260,45 +2289,18 @@
         return false;
     };
 
-    // 予測判定処理（扇範囲の探索用）
-    const testSensorFanDir = {
-        "8":{
-            "8":((x, realX, _x) => false),"2":((x, realX, _x) => false),
-            "6":((x, realX, _x) => {
-                _x = Math.ceil(_x);return _x <= x + realX && _x >= x - realX;
-            }),
-            "4":((x, realX, _x) => {
-                _x = Math.floor(_x);return _x <= x - realX && _x >= x + realX;
-            })
-        },
-        "6":{
-            "6":((y, realY, _y) => false),"4":((y, realY, _y) => false),
-            "8":((y, realY, _y) => {
-                _y = Math.floor(_y);return _y >= y - realY && _y <= y + realY;
-            }),
-            "2":((y, realY, _y) => {
-                _y = Math.ceil(_y);return _y >= y - realY && _y <= y + realY;
-            })
-        },
-        "4":{
-            "6":((y, realY, _y) => false),"4":((y, realY, _y) => false),
-            "8":((y, realY, _y) => {
-                _y = Math.floor(_y);return _y <= y + realY && _y >= y - realY;
-            }),
-            "2":((y, realY, _y) => {
-                _y = Math.ceil(_y);return _y <= y + realY && _y >= y - realY;
-            })
-        },
-        "2":{
-            "8":((x, realX, _x) => false),"2":((x, realX, _x) => false),
-            "6":((x, realX, _x) => {
-                _x = Math.ceil(_x);return _x >= x - realX && _x <= x + realX;
-            }),
-            "4":((x, realX, _x) => {
-                _x = Math.floor(_x);return _x >= x - realX && _x <= x + realX;
-            })
-        }
-    };
+    // 扇範囲の探索用の予測判定処理
+    // ver1.1.4：移動先を対象とした探索判定を行う
+    Game_Event.prototype.testPlayerDestFan_Artm = function(formula, pos, isReverse) {
+        const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
+        const sign = [pos[0] - prevPos[0], pos[1] - prevPos[1]];
+        pos[0] = sign[0] < 0 ? Math.floor(pos[0]) : (sign[0] > 0 ? Math.ceil(pos[0]) : pos[0]);
+        pos[1] = sign[1] < 0 ? Math.floor(pos[1]) : (sign[1] > 0 ? Math.ceil(pos[1]) : pos[1]);
+        return (
+            (pos[0] >= formula[0]) && (pos[0] <= formula[0]) &&
+            (pos[1] >= formula[1]) && (pos[1] <= formula[2])
+        );
+    }
 
     // 扇範囲の探索
     Game_Event.prototype.sensorFan = function() {
@@ -2316,8 +2318,6 @@
         const terrainDecision = CEC(DefTerrainDecision);
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
-        const isSensorFound = this.isSensorFound();
-        const playerDir = ""+$gamePlayer.direction();
         let sign, strDir, diagoDir, noPass, noPassTemp, coordinates, cnt;
         noPass = 0;
         // currentRange初期化
@@ -2380,17 +2380,16 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    const checkX =
-                        (px <= rex + coordinates[i][0] + realX) &&
-                        (px >= rex + coordinates[i][0] - realX);
-                    const checkY =
-                        py <= (rey - Math.abs(coordinates[i][0]) + realY) &&
-                        py >= (rey + coordinates[i][1] - realY);
+                    const formula = [rex + coordinates[i][0]
+                                    , rey + coordinates[i][1]
+                                    , rey - Math.abs(coordinates[i][0])];
+                    const checkX = (px >= formula[0] - realX) && (px <= formula[0] + realX);
+                    const checkY = (py >= formula[1] - realY) && (py <= formula[2] + realY);
                     if (checkX && checkY) {
                         return true;
-                    } else if (isSensorFound && checkY) {
-                        // 予測判定を行う
-                        if (testSensorFanDir["8"][playerDir](rex + coordinates[i][0], realX, px)) {
+                    } else if (IsRealUnder0_5 && this.isSensorFound()) {
+                        // ver1.1.4：プレイヤーの予測判定を行う
+                        if (this.testPlayerDestFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
                     }
@@ -2452,17 +2451,16 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    const checkY =
-                        py >= (rey + coordinates[i][1] - realY) &&
-                        py <= (rey + coordinates[i][1] + realY);
-                    const checkX =
-                        px >= (rex + Math.abs(coordinates[i][1]) - realX) &&
-                        px <= (rex + coordinates[i][0] + realX);
+                    const formula = [rey + coordinates[i][1]
+                                    , rex + Math.abs(coordinates[i][1])
+                                    , rex + coordinates[i][0]];
+                    const checkY = (py >= formula[0] - realY) && (py <= formula[0] + realY);
+                    const checkX = (px >= formula[1] - realX) && (px <= formula[2] + realX);
                     if (checkY && checkX) {
                         return true;
-                    } else if (isSensorFound && checkX) {
-                        // 予測判定を行う
-                        if (testSensorFanDir["6"][playerDir](rey + coordinates[i][1], realY, py)) {
+                    } else if (IsRealUnder0_5 && this.isSensorFound()) {
+                        // ver1.1.4：プレイヤーの予測判定を行う
+                        if (this.testPlayerDestFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
                     }
@@ -2524,17 +2522,16 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    const checkY =
-                        py <= (rey + coordinates[i][1] + realY) &&
-                        py >= (rey + coordinates[i][1] - realY);
-                    const checkX =
-                        px <= (rex - Math.abs(coordinates[i][1]) + realX) &&
-                        px >= (rex + coordinates[i][0] - realX);
+                    const formula = [rey + coordinates[i][1]
+                                    , rex + coordinates[i][0] - realX
+                                    , rex - Math.abs(coordinates[i][1])];
+                    const checkY = (py >= formula[0] - realY) && (py <= formula[0] + realY);
+                    const checkX = (px >= formula[1] - realX) && (px <= formula[2] + realX);
                     if (checkY && checkX) {
                         return true;
-                    } else if (isSensorFound && checkX) {
-                        // 予測判定を行う
-                        if (testSensorFanDir["4"][playerDir](rey + coordinates[i][1], realY, py)) {
+                    } else if (IsRealUnder0_5 && this.isSensorFound()) {
+                        // ver1.1.4：プレイヤーの予測判定を行う
+                        if (this.testPlayerDestFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
                     }
@@ -2596,17 +2593,16 @@
                     } else if (coordinates[i][0] === 0 && coordinates[i][1] === 0) {
                         continue;
                     }
-                    const checkY =
-                        py >= (rey + Math.abs(coordinates[i][0]) - realY) &&
-                        py <= (rey + coordinates[i][1] + realY);
-                    const checkX =
-                        px >= (rex + coordinates[i][0] - realX) &&
-                        px <= (rex + coordinates[i][0] + realX);
-                    if (checkY && checkX) {
+                    const formula = [rex + coordinates[i][0] 
+                                    , rey + Math.abs(coordinates[i][0])
+                                    , rey + coordinates[i][1]];
+                    const checkX = (px >= formula[0] - realX) && (px <= formula[0] + realX);
+                    const checkY = (py >= formula[1] - realY) && (py <= formula[2] + realY);
+                    if (checkX && checkY) {
                         return true;
-                    } else if (isSensorFound && checkY) {
-                        // 予測判定を行う
-                        if (testSensorFanDir["2"][playerDir](rex + coordinates[i][0], realX, px)) {
+                    } else if (IsRealUnder0_5 && this.isSensorFound()) {
+                        // ver1.1.4：プレイヤーの予測判定を行う
+                        if (this.testPlayerDestFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
                     }
@@ -2653,24 +2649,42 @@
             return true;
         }
     }
+    
+    // ver1.1.4：移動先を対象とした探索判定を行う(隣接マス探索用）
+    const calcDestPos = ((key, pos) => {
+        const realPos = [DefRealRangeX[0], DefRealRangeY[0]];
+        return {
+            "-1-1":[Math.floor(pos[0]) + realPos[0], Math.floor(pos[1]) + realPos[1]],
+            "0-1" :[pos[0], Math.floor(pos[1]) + realPos[1]],
+            "1-1" :[Math.ceil(pos[0]) - realPos[0], Math.floor(pos[1]) + realPos[1]],
+            "10"  :[Math.ceil(pos[0]) - realPos[0], pos[1]],
+            "11"  :[Math.ceil(pos[0]) - realPos[0], Math.ceil(pos[1]) - realPos[1]],
+            "01"  :[pos[0], Math.ceil(pos[1]) - realPos[1]],
+            "-11" :[Math.floor(pos[0]) + realPos[0], Math.ceil(pos[1]) - realPos[1]],
+            "-10" :[Math.floor(pos[0]) + realPos[0], pos[1]]
+        }[key] ?? pos;
+    });
 
-    const BIAS_VALUE = .9999; // 予測判定用の最大バイアス値
+    // ver1.1.4：内部処理を追加
+    const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
 
+    // 隣接マス探索
     Game_Event.prototype.isSideSearch = function(directionR, directionL, vx, vy) {
         const bothSensor = CEC(DefBothSensor);
         const terrainDecision = CEC(DefTerrainDecision);
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
-        const sx = this.deltaXFrom($gamePlayer._realX);
-        const sy = this.deltaYFrom($gamePlayer._realY);
-        const key = ""+$gamePlayer.direction() + vx + vy;
+        let pos = [$gamePlayer._realX, $gamePlayer._realY];
+        // ver1.1.4：移動先を対象とした探索判定を行う
+        if (IsRealUnder0_5) {
+            const posOld = $gameTemp.playerPos_Artm(this.eventId(), 0);
+            const key = "" + Math.sign(pos[0] - posOld[0]) + Math.sign(pos[1] - posOld[1]);
+            pos = this.isSensorFound() ? calcDestPos(key, pos) : pos;
+        }
+        const sx = flrDec(this.deltaXFrom(pos[0]));
+        const sy = flrDec(this.deltaYFrom(pos[1]));
         const ex = this.x;
         const ey = this.y;
-        // 予測判定用のバイアス値テーブル
-        const biasX = [{"60-1":-BIAS_VALUE,"40-1":-BIAS_VALUE}[key] ?? 0,
-                        {"401":BIAS_VALUE,"601":BIAS_VALUE}[key] ?? 0];
-        const biasY = [{"210":-BIAS_VALUE,"810":-BIAS_VALUE}[key] ?? 0,
-                        {"8-10":BIAS_VALUE,"2-10":BIAS_VALUE}[key] ?? 0];
         if (this.getBothSensor() === -1 && bothSensor) {
             if (this.getTerrainDecision() === 1
                     || (this.getTerrainDecision() === -1 && terrainDecision)) {
@@ -2694,15 +2708,15 @@
             this.setBothSensorLeft(false);
         }
         if (this.getBothSensorRight() &&
-           sx >= vx + biasX[0] - realX && sx <= vx + biasX[1] + realX &&
-           sy >= vy + biasY[0] - realY && sy <= vy + biasY[1] + realY) {
+           sx >= flrDec(vx - realX) && sx <= flrDec(vx + realX) &&
+           sy >= flrDec(vy - realY) && sy <= flrDec(vy + realY)) {
             return true;
         }
         vx = vx === 0 ? vx : -vx;
         vy = vy === 0 ? vy : -vy;
         if (this.getBothSensorLeft() &&
-           sx >= vx + biasX[0] - realX && sx <= vx + biasX[1] + realX &&
-           sy >= vy + biasY[0] - realY && sy <= vy + biasY[1] + realY) {
+           sx >= flrDec(vx - realX) && sx <= flrDec(vx + realX) &&
+           sy >= flrDec(vy - realY) && sy <= flrDec(vy + realY)) {
             return true;
         }
         return false;
@@ -2832,20 +2846,18 @@
     };
 
     Spriteset_Map.prototype.updateViewRange = function() {
-        const _cnt = this._viewRangeSprites.length - 1
-        cnt = _cnt >= 0 ? _cnt : 0;
         $gameMap.events().filter(event => {
             return !event.isCreateRange();
         }).forEach(event => {
             if (event._sensorType) {
-                this._viewRangeSprites.push(new Sprite_ViewRange(event));
+                const sprite = new Sprite_ViewRange(event);
+                this._viewRangeSprites.push(sprite);
                 addSideSprite(this, event);
                 event.enableCreateRange();
+                // ver1.1.3：二重ループ処理を削除し本ループで処理するように修正
+                this._tilemap.addChild(sprite);
             }
         }, this);
-        for (; cnt < this._viewRangeSprites.length; cnt++) {
-            this._tilemap.addChild(this._viewRangeSprites[cnt]);
-        }
     };
 
     function addSideSprite(spriteset, event) {
