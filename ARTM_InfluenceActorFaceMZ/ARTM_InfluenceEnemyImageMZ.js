@@ -6,6 +6,7 @@
 // ===================================================
 // [Version]
 // 1.0.0 初版
+// 1.0.1 カンマ区切り以外のメモデータがある際にエラーとなる不備を修正
 // =================================================================
 /*:ja
  * @target MZ
@@ -64,19 +65,21 @@
     };
 
     Game_Enemy.prototype.getParamsWrapIEI = function() {
-        const params = this.enemy().meta;
-        const paramss = [];
+        const meta = this.enemy().meta;
+        const paramsList = [];
         const id = [this.enemyId() + ""];
         let prior = 0;
-        for (const key in params) {
-            const args = params[key].split(",").concat(id);
-            const ress = makeParams(prior, args);
-            if (ress) paramss.push(ress);
-            prior++;
+        for (const key in meta) {
+            const args = ("" + meta[key]).match(/^[0-9]+,[!-~]+$/g);
+            if (args) {
+                const params = makeParams(prior, (args[0] + ',' + id).split(","));
+                paramsList.push(params);
+                prior++;
+            }
         }
         return (
-            paramss.length > 0 ?
-            paramss : [{"value":null}]
+            paramsList.length > 0 ?
+            paramsList : [{"value":null}]
         );
     };
 
