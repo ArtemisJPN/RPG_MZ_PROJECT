@@ -6,6 +6,7 @@
 // ===================================================
 // [Version]
 // 1.0.0 初版
+// 1.0.1 カンマ区切り以外のメモデータがある際にエラーとなる不備を修正
 // =================================================================
 /*:ja
  * @target MZ
@@ -113,20 +114,22 @@
     };
 
     Game_Actor.prototype.getParamsWrapIAF = function() {
-        const params = this.actor().meta;
-        const paramss = [];
+        const meta = this.actor().meta;
+        const paramsList = [];
         const id = [this.actorId() + ""];
         let prior = 0;
-        for (const key in params) {
+        for (const key in meta) {
             const type = key.slice(0, key.length - 2);
-            const args = params[key].split(",").concat(id);
-            const ress = getParamsByType(type, prior, args);
-            if (ress) paramss.push(ress);
-            prior++;
+            const args = ("" + meta[key]).match(/^[0-9]+,[!-~]+,[0-9]+$/g);
+            if (args) {
+                const params = getParamsByType(type, prior, args[0].split(","));
+                paramsList.push(params);
+                prior++;
+            }
         }
         return (
-            paramss.length > 0 ?
-            paramss : [{"value":null}]
+            paramsList.length > 0 ?
+            paramsList : [{"value":null}]
         );
     };
 
