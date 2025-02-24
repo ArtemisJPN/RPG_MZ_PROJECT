@@ -7,6 +7,7 @@
 // [Version]
 // 1.0.0 初版
 // 1.0.1 カンマ区切り以外のメモデータがある際にエラーとなる不備を修正
+// 1.0.2 優先高の顔画像が解除されると優先度低の顔画像が表示されない不備を修正
 // =================================================================
 /*:ja
  * @target MZ
@@ -50,14 +51,6 @@
  *   ・ステート4がON＋HP15%以下 → Monsterの1番目インデックス表示
  *   ・ステート4がON＋HP0       → Monsterの2番目インデックス表示
  *
- * ★DynamicActorGraphic.jsと併用する場合の留意点
- *   プラグイン管理画面で本プラグインを必ず下に配置して下さい。
- *   <配置例>
- *     :
- *   DynamicActorGraphic
- *   ARTM_InfluenceActorFaceMZ
- *     :
- *
  * プラグインコマンドはありません。
  *
  */
@@ -66,11 +59,7 @@
 
     const _PREF = "IAF_";
     const TYPE = ["HP", "MP", "ST"].map(v => _PREF + v);
-    const TGTYPE = {
-        "HP":TYPE[0],
-        "MP":TYPE[1],
-        "ST":TYPE[2]
-    };
+    const TGTYPE = {"HP":TYPE[0], "MP":TYPE[1], "ST":TYPE[2]};
     let Images = {};
 
     function makeParams(type, value, prior, args) {
@@ -122,23 +111,21 @@
             const type = key.slice(0, key.length - 2);
             const args = ("" + meta[key]).match(/^[0-9]+,[!-~]+,[0-9]+$/g);
             if (args) {
-                const params = getParamsByType(type, prior, args[0].split(","));
+                const params = getParamsByType(
+                    type, prior, (args[0] + ',' + id).split(",")
+                );
                 paramsList.push(params);
                 prior++;
             }
         }
-        return (
-            paramsList.length > 0 ?
-            paramsList : [{"value":null}]
-        );
+        return paramsList.length > 0 ? paramsList : [{"value":null}];
     };
 
     Game_Actor.prototype.getIndexOnPriorIAF = function() {
-        const faceInf = this._faceInf;
         let priorO = Number.MAX_SAFE_INTEGER;
         let indexO = 0;
         let indexT = 0;
-        for (const fi of faceInf) {
+        for (const fi of this._faceInf) {
            const priorI = fi.prior;
            indexO = priorI < priorO ? indexT : indexO;
            priorO = Math.min(priorI, priorO);
@@ -148,9 +135,7 @@
     };
 
     Game_Actor.prototype.existFaceImagesIAF = function() {
-        const isInBattle = $gameParty.inBattle();
-        const faceInf = this._faceInf;
-        return  isInBattle ? faceInf.length > 0 : false;
+        return $gameParty.inBattle() ? this._faceInf.length > 0 : false;
     };
 
     const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
@@ -193,9 +178,7 @@
                 "prior":params.prior
             });
         } else if (!match && dsp) {
-            actor._faceInf = inf.filter(v => {
-                return v.type !== params.type;
-            });
+            actor._faceInf = inf.filter(v => v.key !== params.key);
         } else {
             return false;
         }
@@ -228,9 +211,10 @@
         return match;
     };
 
-    Game_Actor.prototype.onTurnEnd = function() {
-        Game_Battler.prototype.onTurnEnd.call(this);
-        if ($gameParty.inBattle()) {
+    const _Game_Battler_onTurnEnd = Game_Battler.prototype.onTurnEnd;
+    Game_Battler.prototype.onTurnEnd = function() {
+        _Game_Battler_onTurnEnd.call(this);
+        if (this instanceof Game_Actor && $gameParty.inBattle()) {
             this.checkFaceChangeIAF();
             if (this._needsFaceChanging) {
                 preparePartyRefreshCustom(this);
@@ -254,22 +238,23 @@
     const _Scene_Battle_start = Scene_Battle.prototype.start;
     Scene_Battle.prototype.start = function() {
         _Scene_Battle_start.call(this);
-        const members = $gameParty.battleMembers();
-        for (const member of members) {
-            this.initFaceParames(member);
+        for (const member of $gameParty.battleMembers()) {
+            this.initFaceParamesIAF(member);
             member.checkFaceChangeIAF();
             preparePartyRefreshCustom(member);
         }
     };
 
-    Scene_Battle.prototype.initFaceParames = function(actor) {
+    Scene_Battle.prototype.initFaceParamesIAF = function(actor) {
         const paramsWrap = actor.getParamsWrapIAF();
         const actorId = actor.actorId();
         const actorNm = actor.faceName();
         let key = actorNm;
         Images[key] = ImageManager.loadFace(actorNm);
+        if (!paramsWrap[0]) {
+            return;
+        }
         for (const params of paramsWrap) {
-            if (!params.value) return;
             key = params.name;
             if (!(key in Images)) {
                 const name = params.name;
@@ -330,13 +315,15 @@
     Sprite_Gauge.prototype.updateTargetValue = function(value, maxValue) {
         _Sprite_Gauge_updateTargetValue.call(this, value, maxValue);
         const battler = this._battler;
-        if ($gameParty.inBattle() &&
+        if (
+            $gameParty.inBattle() &&
             Object.keys(Images).length > 0 &&
-            battler.isActor()) {
-             battler.checkFaceChangeIAF();
-             if (battler._needsFaceChanging) {
-                 preparePartyRefreshCustom(battler);
-             }
+            battler.isActor()
+        ) {
+            battler.checkFaceChangeIAF();
+            if (battler._needsFaceChanging) {
+                preparePartyRefreshCustom(battler);
+            }
         }
     };
 
@@ -344,10 +331,12 @@
     Sprite_StateIcon.prototype.updateIcon = function() {
         const battler = this._battler;
         _Sprite_StateIcon_updateIcon.call(this);
-        if ($gameParty.inBattle() && 
+        if (
+            $gameParty.inBattle() && 
             battler.isActor() &&
-            battler._needsFaceChanging) {
-             preparePartyRefreshCustomProc(battler);
+            battler._needsFaceChanging
+        ) {
+            preparePartyRefreshCustomProc(battler);
         }
     };
 
