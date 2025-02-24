@@ -2383,9 +2383,10 @@
                     const formula = [rex + coordinates[i][0]
                                     , rey + coordinates[i][1]
                                     , rey - Math.abs(coordinates[i][0])];
-                    const checkX = (px >= formula[0] - realX) && (px <= formula[0] + realX);
-                    const checkY = (py >= formula[1] - realY) && (py <= formula[2] + realY);
-                    if (checkX && checkY) {
+                    if (
+                        (px >= formula[0] - realX) && (px <= formula[0] + realX) &&
+                        (py >= formula[1] - realY) && (py <= formula[2] + realY)
+                    ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
@@ -2454,9 +2455,10 @@
                     const formula = [rey + coordinates[i][1]
                                     , rex + Math.abs(coordinates[i][1])
                                     , rex + coordinates[i][0]];
-                    const checkY = (py >= formula[0] - realY) && (py <= formula[0] + realY);
-                    const checkX = (px >= formula[1] - realX) && (px <= formula[2] + realX);
-                    if (checkY && checkX) {
+                    if (
+                        (py >= formula[0] - realY) && (py <= formula[0] + realY) &&
+                        (px >= formula[1] - realX) && (px <= formula[2] + realX)
+                    ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
@@ -2525,9 +2527,10 @@
                     const formula = [rey + coordinates[i][1]
                                     , rex + coordinates[i][0] - realX
                                     , rex - Math.abs(coordinates[i][1])];
-                    const checkY = (py >= formula[0] - realY) && (py <= formula[0] + realY);
-                    const checkX = (px >= formula[1] - realX) && (px <= formula[2] + realX);
-                    if (checkY && checkX) {
+                    if (
+                        (py >= formula[0] - realY) && (py <= formula[0] + realY) &&
+                        (px >= formula[1] - realX) && (px <= formula[2] + realX)
+                    ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
@@ -2596,9 +2599,10 @@
                     const formula = [rex + coordinates[i][0] 
                                     , rey + Math.abs(coordinates[i][0])
                                     , rey + coordinates[i][1]];
-                    const checkX = (px >= formula[0] - realX) && (px <= formula[0] + realX);
-                    const checkY = (py >= formula[1] - realY) && (py <= formula[2] + realY);
-                    if (checkX && checkY) {
+                    if (
+                        (px >= formula[0] - realX) && (px <= formula[0] + realX) &&
+                        (py >= formula[1] - realY) && (py <= formula[2] + realY)
+                    ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
