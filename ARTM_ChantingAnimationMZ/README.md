@@ -1,3 +1,2 @@
-# RPGMZ-ARTM_ChantingAnimationMZ
-詠唱中のエフェクトを追加するMZ専用プラグインです。
-![](https://github.com/ArtemisJP/RPGMZ-ARTM_ChantingAnimationMZ/blob/main/image001.png)
+# ARTM_ChantingAnimationMZ
+指定IDのアニメーションを詠唱中に表示するMZ専用プラグイン。
