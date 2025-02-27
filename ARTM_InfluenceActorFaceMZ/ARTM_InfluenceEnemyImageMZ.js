@@ -41,15 +41,13 @@
 
     const PREF = "IEI_STID";
 
-    function makeParams(prior, args) {
-        const value = Number(args[0] || "0");
-        const name = args[1];
-        const id = args[2];
+    function makeParams(args) {
+        args[0] = Number(args[0] || "0");
         return ({
-            "key"  :id + value,
-            "value":value,
-            "name" :name,
-            "prior":prior
+            "key"  :args[2] + args[0],
+            "value":args[0],
+            "name" :args[1],
+            "prior":args[3]
         }); 
     }
 
@@ -64,7 +62,7 @@
         _DataManager_extractMetadata.call(this, data);
     };
 
-    Game_Enemy.prototype.getParamsWrapIEI = function() {
+    Game_Enemy.prototype.getParamsWrap_Artm = function() {
         const meta = this.enemy().meta;
         const paramsList = [];
         const id = [this.enemyId() + ""];
@@ -72,7 +70,9 @@
         for (const key in meta) {
             const args = ("" + meta[key]).match(/^[0-9]+,[!-~]+$/g);
             if (args) {
-                const params = makeParams(prior, (args[0] + ',' + id).split(","));
+                const params = makeParams(
+                    (args[0] + ',' + id + ',' + prior++).split(",")
+                );
                 paramsList.push(params);
                 prior++;
             }
@@ -83,54 +83,42 @@
         );
     };
 
-    Game_Enemy.prototype.getIndexOnPriorIEI = function() {
-        const nameInfIEI = this._nameInfIEI;
-        let priorO = Number.MAX_SAFE_INTEGER;
-        let indexO = 0;
-        let indexT = 0;
-        for (const fi of nameInfIEI) {
-           const priorI = fi.prior;
-           indexO = priorI < priorO ? indexT : indexO;
-           priorO = Math.min(priorI, priorO);
-           indexT++;
-        }
-        return indexO;
+    Game_Enemy.prototype.getPicInfoFirst_Artm = function() {
+        const priorFirst =
+            this._infoArtm.map(f => Number(f.prior)).sort((a, b) => a - b)[0];
+        return this._infoArtm.filter(f => f.prior === "" + priorFirst)[0];
     };
 
-    Game_Enemy.prototype.existKeysIEI = function() {
-        const isInBattle = $gameParty.inBattle();
-        const nameInfIEI = this._nameInfIEI;
-        return  isInBattle ? nameInfIEI.length > 0 : false;
+    Game_Enemy.prototype.existKeys_Artm = function() {
+        return $gameParty.inBattle() ? this._infoArtm.length > 0 : false;
     };
 
     const _Game_Enemy_initMembers = Game_Enemy.prototype.initMembers;
     Game_Enemy.prototype.initMembers = function() {
         _Game_Enemy_initMembers.call(this);
         this._needsFaceChanging = false;
-        this._nameInfIEI = [];
+        this._infoArtm = [];
     };
 
     const _Game_Enemy_battlerName = Game_Enemy.prototype.battlerName;
     Game_Enemy.prototype.battlerName = function() {
-        if (this.existKeysIEI()) {
-            const index = this.getIndexOnPriorIEI();
-            return this._nameInfIEI[index].name;
+        if (this.existKeys_Artm()) {
+            return this.getPicInfoFirst_Artm().name;
         } else {
             return _Game_Enemy_battlerName.call(this);
         }
     };
 
-    Game_Enemy.prototype.checkThresholdProcIEI = function(params, match) {
-        const inf = this._nameInfIEI;
-        const dsp = inf.some(v => v.key === params.key);
-        if (match && !dsp) {
-            this._nameInfIEI.push({
+    Game_Enemy.prototype.checkThresholdMain_Artm = function(params, match) {
+        const stack = this._infoArtm.some(v => v.key === params.key);
+        if (match && !stack) {
+            this._infoArtm.push({
                 "key"  :params.key,
                 "name" :params.name,
                 "prior":params.prior
             });
-        } else if (!match && dsp) {
-            this._nameInfIEI = inf.filter(v => {
+        } else if (!match && stack) {
+            this._infoArtm = this._infoArtm.filter(v => {
                 return v.key !== params.key;
             });
         } else {
@@ -139,47 +127,47 @@
         return true;
     };
 
-    Game_Enemy.prototype.checkFaceChangeIEI = function() {
-        const paramsWrap = this.getParamsWrapIEI();
+    Game_Enemy.prototype.checkFaceChange_Artm = function() {
+        const paramsWrap = this.getParamsWrap_Artm();
         let match, result;
         for (const params of paramsWrap) {
-            match = this.checkThresholdIEI(params);
-            result = this.checkThresholdProcIEI(params, match);
+            match = this.checkThreshold_Artm(params);
+            result = this.checkThresholdMain_Artm(params, match);
             if (!this._needsFaceChanging && result) {
                 this._needsFaceChanging = true;
             }
         }
     };
 
-    Game_Enemy.prototype.checkThresholdIEI = function(params) {
+    Game_Enemy.prototype.checkThreshold_Artm = function(params) {
         return this.isStateAffected(params.value);
     };
 
-    Game_Enemy.prototype.changeEnemyImageIEI = function() {
+    Game_Enemy.prototype.changeEnemyImage_Artm = function() {
         this._battlerName = this.battlerName();
     };
 
     const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
     Scene_Battle.prototype.terminate = function() {
         const members = $gameTroop.members();
-        members.forEach(member => member._nameInfIEI = []);
+        members.forEach(member => member._infoArtm = []);
         _Scene_Battle_terminate.call(this);
     };
 
     const _Sprite_Enemy_loadBitmap = Sprite_Enemy.prototype.loadBitmap;
     Sprite_Enemy.prototype.loadBitmap = function(name) {
-        const enemy = this._enemy;
-        if (!enemy.existKeysIEI() ||
-            enemy._needsFaceChanging) {
-             _Sprite_Enemy_loadBitmap.call(this, name);
+        if (
+            !this._enemy.existKeys_Artm() ||
+            this._enemy._needsFaceChanging
+        ) {
+            _Sprite_Enemy_loadBitmap.call(this, name);
         }
     };
 
     const _Sprite_Enemy_initVisibility = Sprite_Enemy.prototype.initVisibility;
     Sprite_Enemy.prototype.initVisibility = function() {
-        const enemy = this._enemy;
-        if (enemy._needsFaceChanging) {
-            enemy._needsFaceChanging = false;
+        if (this._enemy._needsFaceChanging) {
+            this._enemy._needsFaceChanging = false;
         } else {
             _Sprite_Enemy_initVisibility.call(this);
         }
@@ -189,13 +177,15 @@
     Sprite_StateIcon.prototype.updateIcon = function() {
         const battler = this._battler;
         _Sprite_StateIcon_updateIcon.call(this);
-        if ($gameParty.inBattle() &&
+        if (
+            $gameParty.inBattle() &&
             battler.isEnemy() &&
-            battler.isAlive()) {
-             battler.checkFaceChangeIEI();
-             if (battler._needsFaceChanging) {
-                 battler.changeEnemyImageIEI();
-             }
+            battler.isAlive()
+        ) {
+            battler.checkFaceChange_Artm();
+            if (battler._needsFaceChanging) {
+                battler.changeEnemyImage_Artm();
+            }
         }
     };
 
