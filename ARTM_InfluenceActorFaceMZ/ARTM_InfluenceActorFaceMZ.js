@@ -108,7 +108,7 @@
         _DataManager_extractMetadata.call(this, data);
     };
 
-    Game_Actor.prototype.getParamsWrapIAF = function() {
+    Game_Actor.prototype.getParamsWrap_Artm = function() {
         const id = this.actorId();
         const meta = this.actor().meta;
         const paramsList = [];
@@ -126,28 +126,28 @@
         return paramsList.length > 0 ? paramsList : [{"value":null}];
     };
 
-    Game_Actor.prototype.getFaceInfoFirstIAF = function() {
+    Game_Actor.prototype.getFaceInfoFirst_Artm = function() {
         const priorFirst =
-            this._faceInfo.map(f => Number(f.prior)).sort((a, b) => a - b)[0];
-        return this._faceInfo.filter(f => f.prior === "" + priorFirst)[0];
+            this._infoArtm.map(f => Number(f.prior)).sort((a, b) => a - b)[0];
+        return this._infoArtm.filter(f => f.prior === "" + priorFirst)[0];
     };
 
-    Game_Actor.prototype.existFaceImagesIAF = function() {
-        return $gameParty.inBattle() ? this._faceInfo.length > 0 : false;
+    Game_Actor.prototype.existFaceImages_Artm = function() {
+        return $gameParty.inBattle() ? this._infoArtm.length > 0 : false;
     };
 
     const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
     Game_Actor.prototype.initMembers = function() {
         _Game_Actor_initMembers.call(this);
         this._needsFaceChanging = false;
-        this._faceInfo = [];
-        this._faceInfoSave = [];
+        this._infoArtm = [];
+        this._infoArtmSave = [];
     };
 
     const _Game_Actor_faceName = Game_Actor.prototype.faceName;
     Game_Actor.prototype.faceName = function() {
-        if (this.existFaceImagesIAF()) {
-            return this.getFaceInfoFirstIAF().name;
+        if (this.existFaceImages_Artm()) {
+            return this.getFaceInfoFirst_Artm().name;
         } else {
             return _Game_Actor_faceName.call(this);
         }
@@ -155,17 +155,17 @@
 
     const _Game_Actor_faceIndex = Game_Actor.prototype.faceIndex;
     Game_Actor.prototype.faceIndex = function() {
-        if (this.existFaceImagesIAF()) {
-            return this.getFaceInfoFirstIAF().index - 1;
+        if (this.existFaceImages_Artm()) {
+            return this.getFaceInfoFirst_Artm().index - 1;
         } else {
             return _Game_Actor_faceIndex.call(this);
         }
     };
 
     function checkFaceChange(actor, params, match) {
-        const stack = actor._faceInfo.some(v => v.key === params.key);
+        const stack = actor._infoArtm.some(v => v.key === params.key);
         if (match && !stack) {
-            actor._faceInfo.push({
+            actor._infoArtm.push({
                 "key"  :params.key,
                 "type" :params.type,
                 "name" :params.name,
@@ -173,18 +173,18 @@
                 "prior":params.prior
             });
         } else if (!match && stack) {
-            actor._faceInfo = actor._faceInfo.filter(v => v.key !== params.key);
+            actor._infoArtm = actor._infoArtm.filter(v => v.key !== params.key);
         } else {
             return false;
         }
         return true;
     }
 
-    Game_Actor.prototype.checkFaceChangeIAF = function() {
-        const paramsWrap = this.getParamsWrapIAF();
+    Game_Actor.prototype.checkFaceChange_Artm = function() {
+        const paramsWrap = this.getParamsWrap_Artm();
         let match, result;
         for (const params of paramsWrap) {
-            match = this.checkThresholdIAF(params);
+            match = this.checkThreshold_Artm(params);
             result = checkFaceChange(this, params, match);
             if (!this._needsFaceChanging && result) {
                 this._needsFaceChanging = true;
@@ -192,7 +192,7 @@
         }
     };
 
-    Game_Actor.prototype.checkThresholdIAF = function(params) {
+    Game_Actor.prototype.checkThreshold_Artm = function(params) {
         let match;
         if (params.type === TGTYPE.HP) {
             match = this.hp <= (this.mhp * params.value);
@@ -210,7 +210,7 @@
     Game_Battler.prototype.onTurnEnd = function() {
         _Game_Battler_onTurnEnd.call(this);
         if (this instanceof Game_Actor && $gameParty.inBattle()) {
-            this.checkFaceChangeIAF();
+            this.checkFaceChange_Artm();
             if (this._needsFaceChanging) {
                 preparePartyRefresh(this);
             }
@@ -223,7 +223,7 @@
             target.isActor() ? target : subject.isActor() ? subject : null;
         _BattleManager_invokeAction.call(this, subject, target);
         if (actor) {
-            actor.checkFaceChangeIAF();
+            actor.checkFaceChange_Artm();
             if (actor._needsFaceChanging) {
                 preparePartyRefresh(actor);
             }
@@ -236,15 +236,15 @@
         // ver.1.1.0 顔画像の事前ロード有無設定を追加
         if (IS_PRELOAD) {
             for (const member of $gameParty.battleMembers()) {
-                this.initFaceParamesIAF(member);
-                member.checkFaceChangeIAF();
+                this.initFaceParames_Artm(member);
+                member.checkFaceChange_Artm();
                 preparePartyRefresh(member);
             }
         }
     };
 
-    Scene_Battle.prototype.initFaceParamesIAF = function(actor) {
-        const paramsWrap = actor.getParamsWrapIAF();
+    Scene_Battle.prototype.initFaceParames_Artm = function(actor) {
+        const paramsWrap = actor.getParamsWrap_Artm();
         const actorId = actor.actorId();
         let key = actor.faceName();
         Images[key] = ImageManager.loadFace(key);
@@ -262,7 +262,7 @@
     const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
     Scene_Battle.prototype.terminate = function() {
         const members = $gameParty.battleMembers();
-        members.forEach(member => member._faceInfo = []);
+        members.forEach(member => member._infoArtm = []);
         Images = {};
         _Scene_Battle_terminate.call(this);
     };
@@ -315,7 +315,7 @@
             Object.keys(Images).length > 0 &&
             this._battler.isActor()
         ) {
-            this._battler.checkFaceChangeIAF();
+            this._battler.checkFaceChange_Artm();
             if (this._battler._needsFaceChanging) {
                 preparePartyRefresh(this._battler);
             }
