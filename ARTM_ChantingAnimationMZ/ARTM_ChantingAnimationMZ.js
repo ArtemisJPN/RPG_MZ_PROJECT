@@ -7,19 +7,19 @@
 // [Version]
 // 1.0.0 初版
 // 1.1.0 魔法以外のスキルタイプにも対応
-// 1.2.0 拙作プラグイン「ARTM_EnemyAsActorSpriteMZ」に対応
 // 1.3.0 アクションフェーズ時の詠唱アニメーション継続ON/OFFを追加
 //       詠唱完了後もアニメーションのフラッシュ色が残り続ける不具合を解消
 // 1.3.1 詠唱アニメーション継続OFF設定時、イベント発生中も中断するよう対応
-//       リファクタリングを実施、リファクタリング漏れ対応
+// 1.4.0 「ARTM_EnemyAsActorSpriteMZ」を廃止したため、関連する対応を削除
+//       その他のパフォーマンス改善
 // =============================================================================
 /*:ja
  * @target MZ
- * @plugindesc 詠唱中アニメーションを追加するMZ専用プラグイン
+ * @plugindesc 指定IDのアニメーションを詠唱者に表示するMZ専用プラグイン
  * @author Artemis
  *
  * @help ARTM_ChantingAnimationMZ.js
- * 詠唱中アニメーションを追加するMZ専用プラグインです。
+ * 指定IDのアニメーションを詠唱者に表示するMZ専用プラグインです。
  *
  *--------------
  * ご使用方法
@@ -39,16 +39,9 @@
  *    ON:中断要シーンでも詠唱アニメーションを継続します。
  *   OFF:中断要シーンでは詠唱アニメーションを中断します。
  *
- *---------------------------------------------
- * NRP_Dynamicシリーズと併用される場合の注意
- *---------------------------------------------
- * プラグイン管理画面にて本プラグインを必ずNRP_Dynamicシリーズより
- * “上”に置いて下さい。
- *
- *
  * プラグインコマンドはありません。
  *
- * @param keeponAnime
+ * @param keepAnime
  * @text 詠唱アニメ継続設定
  * @desc 中断要シーンで詠唱アニメーション継続/中断を設定します。
  * 中断要シーン：アクションフェーズ中、イベント発生中
@@ -62,20 +55,18 @@
 
     const PLG_NAME = "ARTM_ChantingAnimationMZ";
     const TAG_NAME = "CA_ANIM_ID";
-    const parameters = PluginManager.parameters(PLG_NAME);
-    const gKeeponAnime = parameters["keeponAnime"];
+    const params = PluginManager.parameters(PLG_NAME);
+    const KeepAnime = (params["keepAnime"] || "false").toLowerCase() === "true";
 
     //-----------------------------------------------------------------------------
     // function
     //
     function getCantAnimationId(battler) {
-        const action = battler.action(0);
-        const item = action ? action._item : null;
-        const emptyId = -1;
-        if (item && item.isSkill()) {
-            return item.object().meta.CA_ANIM_ID || emptyId;
+        const item = battler.action(0)?._item;
+        if (item?.isSkill()) {
+            return item.object().meta.CA_ANIM_ID || -1;
         } else {
-            return emptyId;
+            return -1;
         }
     }
 
@@ -85,10 +76,10 @@
     const _Game_Temp_initialize = Game_Temp.prototype.initialize;
     Game_Temp.prototype.initialize = function() {
         _Game_Temp_initialize.call(this);
-        this._animationQueueCA = [];
+        this._animationQueueArtm = [];
     };
 
-    Game_Temp.prototype.requestAnimationCA = function(sprite, target, animationId) {
+    Game_Temp.prototype.requestAnimation_Artm = function(sprite, target, animationId) {
         if ($dataAnimations[animationId]) {
             const request = {
                 targets: [target],
@@ -96,13 +87,13 @@
                 mirror: false,
                 sprite: sprite
             };
-            this._animationQueueCA.push(request);
-            target.startAnimationCA();
+            this._animationQueueArtm.push(request);
+            target.startAnimation_Artm();
         }
     };
 
-    Game_Temp.prototype.retrieveAnimationCA = function() {
-        return this._animationQueueCA.shift();
+    Game_Temp.prototype.retrieveAnimation_Artm = function() {
+        return this._animationQueueArtm.shift();
     };
 
     //-----------------------------------------------------------------------------
@@ -111,59 +102,58 @@
     const _Game_BattlerBase_initMembers = Game_BattlerBase.prototype.initMembers;
     Game_BattlerBase.prototype.initMembers = function() {
         _Game_BattlerBase_initMembers.call(this);
-        this._animationPlayingCA = false;
-        this._animationErrCountCA = 0;
-        this._anmPitch = 0;
+        this._animationPlayingArtm = false;
+        this._animationErrCountArtm = 0;
+        this._animationPitchArtm = 0;
     };
 
-    Game_BattlerBase.prototype.animationPlayingCA = function() {
-        return this._animationPlayingCA;
+    Game_BattlerBase.prototype.animationPlaying_Artm = function() {
+        return this._animationPlayingArtm;
     };
 
-    Game_BattlerBase.prototype.startAnimationCA = function() {
-        this._animationPlayingCA = true;
+    Game_BattlerBase.prototype.startAnimation_Artm = function() {
+        this._animationPlayingArtm = true;
     };
 
-    Game_BattlerBase.prototype.endAnimationCA = function(sprite) {
-        this._animationPlayingCA = false;
+    Game_BattlerBase.prototype.endAnimation_Artm = function(sprite) {
+        this._animationPlayingArtm = false;
     };
 
-    Game_BattlerBase.prototype.nextAnimErrCountCA = function() {
-        return ++this._animationErrCountCA;
+    Game_BattlerBase.prototype.nextAnimeErrCount_Artm = function() {
+        return ++this._animationErrCountArtm;
     };
 
-    Game_BattlerBase.prototype.initAnmErrCountCA = function() {
-        this._animationErrCountCA = 0;
+    Game_BattlerBase.prototype.initAnimeErrCount_Artm = function() {
+        this._animationErrCountArtm = 0;
     };
 
     //-----------------------------------------------------------------------------
     // Sprite_Battler
     //
-    Sprite_Battler.prototype.updateAnimationCA = function() {
-        const battler = this._battler;
-        if (battler._tpbState === "casting" &&
-            BattleManager.isKeeponAnimationCA()) {
-             const animeId = getCantAnimationId(battler);
-             if (animeId > 0) {
-                 this.requestAnimationCA(animeId);
-             } else {
-                 return;
-             }
+    Sprite_Battler.prototype.updateAnimation_Artm = function() {
+        if (
+            this._battler._tpbState === "casting" &&
+            BattleManager.isKeepAnimation_Artm()
+        ) {
+            const animeId = getCantAnimationId(this._battler);
+            if (animeId > 0) {
+                this.requestAnimation_Artm(animeId);
+            }
         }
     };
 
-    Sprite_Battler.prototype.requestAnimationCA = function(animeId) {
+    Sprite_Battler.prototype.requestAnimation_Artm = function(animeId) {
         const battler = this._battler;
         let speed = 0;
         if (battler.action(0)) {
             speed = battler.action(0).item().speed;
         }
-        if (speed < 0 && !battler.animationPlayingCA()) {
-            $gameTemp.requestAnimationCA(this, battler, animeId);
-            battler.initAnmErrCountCA();
-        } else if (battler.nextAnimErrCountCA() > battler._anmPitch) {
-            battler.initAnmErrCountCA();
-            battler.endAnimationCA();
+        if (speed < 0 && !battler.animationPlaying_Artm()) {
+            $gameTemp.requestAnimation_Artm(this, battler, animeId);
+            battler.initAnimeErrCount_Artm();
+        } else if (battler.nextAnimeErrCount_Artm() > battler._animationPitchArtm) {
+            battler.initAnimeErrCount_Artm();
+            battler.endAnimation_Artm();
         };
     };
 
@@ -173,7 +163,7 @@
     const _Sprite_Actor_updateMotion = Sprite_Actor.prototype.updateMotion;
     Sprite_Actor.prototype.updateMotion = function() {
         _Sprite_Actor_updateMotion.call(this);
-        this.updateAnimationCA();
+        this.updateAnimation_Artm();
     };
 
     //-----------------------------------------------------------------------------
@@ -182,27 +172,25 @@
     const _Sprite_Enemy_updateEffect = Sprite_Enemy.prototype.updateEffect;
     Sprite_Enemy.prototype.updateEffect = function() {
         _Sprite_Enemy_updateEffect.call(this);
-        if (!this._enemy._asEnemy) {
-            this.updateAnimationCA();
-        }
+        this.updateAnimation_Artm();
     };
 
     //-----------------------------------------------------------------------------
-    // Sprite_AnimationCA
+    // Sprite_Animation_Artm
     //
-    function Sprite_AnimationCA(spriteBase) {
+    function Sprite_Animation_Artm(spriteBase) {
         this.initialize(...arguments);
     }
 
-    Sprite_AnimationCA.prototype = Object.create(Sprite_Animation.prototype);
-    Sprite_AnimationCA.prototype.constructor = Sprite_AnimationCA;
+    Sprite_Animation_Artm.prototype = Object.create(Sprite_Animation.prototype);
+    Sprite_Animation_Artm.prototype.constructor = Sprite_Animation_Artm;
 
-    Sprite_AnimationCA.prototype.initialize = function(spriteBase) {
+    Sprite_Animation_Artm.prototype.initialize = function(spriteBase) {
         Sprite_Animation.prototype.initialize.call(this);
         this._spriteBase = spriteBase;
     };
 
-    Sprite_AnimationCA.prototype.spriteBaseCA = function() {
+    Sprite_Animation_Artm.prototype.spriteBase_Artm = function() {
         return this._spriteBase;
     };
 
@@ -212,10 +200,10 @@
     const _Spriteset_Base_initialize = Spriteset_Base.prototype.initialize;
     Spriteset_Base.prototype.initialize = function() {
         _Spriteset_Base_initialize.call(this);
-        this._animationSpritesCA = [];
+        this._animationSpritesArtm = [];
     };
 
-    Spriteset_Base.prototype.createAnimationCA = function(request) {
+    Spriteset_Base.prototype.createAnimation_Artm = function(request) {
         const sprite = request.sprite;
         const animation = $dataAnimations[request.animationId];
         const targets = request.targets;
@@ -223,64 +211,67 @@
         let delay = this.animationBaseDelay();
         const nextDelay = this.animationNextDelay();
         if (this.isAnimationForEach(animation)) {
-            this.createAnimationSpriteCA(sprite, targets, animation, mirror, delay);
+            this.createAnimationSprite_Artm(sprite, targets, animation, mirror, delay);
             delay += nextDelay;
         } else {
-            this.createAnimationSpriteCA(sprite, targets, animation, mirror, delay);
+            this.createAnimationSprite_Artm(sprite, targets, animation, mirror, delay);
         }
     };
 
-    Spriteset_Base.prototype.createAnimationSpriteCA = function(
+    Spriteset_Base.prototype.createAnimationSprite_Artm = function(
         sprite, targets, animation, mirror, delay
     ) {
-        const spriteA = new Sprite_AnimationCA(sprite);
+        const spriteAnimation = new Sprite_Animation_Artm(sprite);
         const targetSprites = this.makeTargetSprites(targets);
         const baseDelay = this.animationBaseDelay();
         const previous = delay > baseDelay ? this.lastAnimationSprite() : null;
         if (this.animationShouldMirror(targets[0])) {
             mirror = !mirror;
         }
-        spriteA.targetObjects = targets;
-        spriteA.setup(targetSprites, animation, mirror, delay, previous);
-        spriteA._animation.displayType = -1;
-        targets[0]._anmPitch = parseInt(120 / (spriteA._animation.speed / 100)) * 1.5;
-        this._effectsContainer.addChild(spriteA);
-        this._animationSpritesCA.push(spriteA);
+        spriteAnimation.targetObjects = targets;
+        spriteAnimation.setup(targetSprites, animation, mirror, delay, previous);
+        spriteAnimation._animation.displayType = -1;
+        targets[0]._animationPitchArtm =
+            parseInt(120 / (spriteAnimation._animation.speed / 100)) * 1.5;
+        this._effectsContainer.addChild(spriteAnimation);
+        this._animationSpritesArtm.push(spriteAnimation);
     };
 
     const _Spriteset_Base_updateAnimations = Spriteset_Base.prototype.updateAnimations;
     Spriteset_Base.prototype.updateAnimations = function() {
         _Spriteset_Base_updateAnimations.call(this);
-        for (const sprite of this._animationSpritesCA) {
-            const target = sprite.targetObjects[0];
-            if (target._tpbState !== "casting" || !sprite.isPlaying()) {
-                this.removeAnimationCA(sprite);
-            } else if (!BattleManager.isKeeponAnimationCA()) {
-                this.removeAnimationCA(sprite);
+        for (const sprite of this._animationSpritesArtm) {
+            if (
+                sprite.targetObjects[0]._tpbState !== "casting" ||
+                !sprite.isPlaying()
+            ) {
+                this.removeAnimation_Artm(sprite);
+            } else if (!BattleManager.isKeepAnimation_Artm()) {
+                this.removeAnimation_Artm(sprite);
             }
             if (!sprite.isPlaying()) {
-                sprite.spriteBaseCA().setBlendColor([0, 0, 0, 0]);
+                sprite.spriteBase_Artm().setBlendColor([0, 0, 0, 0]);
             }
         }
-        this.processAnimationRequestsCA();
+        this.processAnimationRequests_Artm();
     };
 
-    Spriteset_Base.prototype.processAnimationRequestsCA = function() {
+    Spriteset_Base.prototype.processAnimationRequests_Artm = function() {
         for (;;) {
-            const request = $gameTemp.retrieveAnimationCA();
+            const request = $gameTemp.retrieveAnimation_Artm();
             if (request) {
-                this.createAnimationCA(request);
+                this.createAnimation_Artm(request);
             } else {
                 break;
             }
         }
     };
 
-    Spriteset_Base.prototype.removeAnimationCA = function(sprite) {
+    Spriteset_Base.prototype.removeAnimation_Artm = function(sprite) {
         const target = sprite.targetObjects[0];
-        this._animationSpritesCA.remove(sprite);
+        this._animationSpritesArtm.remove(sprite);
         this._effectsContainer.removeChild(sprite);
-        target.endAnimationCA();
+        target.endAnimation_Artm();
         sprite.destroy();
     };
 
@@ -290,24 +281,25 @@
     const _BattleManager_initMembers = BattleManager.initMembers;
     BattleManager.initMembers = function() {
         _BattleManager_initMembers.call(this);
-        this._phasePreCA = "";
     };
 
     const _BattleManager_startAction = BattleManager.startAction;
     BattleManager.startAction = function() {
         _BattleManager_startAction.call(this);
         const subject = this._subject;
-        subject.endAnimationCA();
+        subject.endAnimation_Artm();
     };
 
-    BattleManager.isKeeponAnimationCA = function() {
+    BattleManager.isKeepAnimation_Artm = function() {
         const targetPhase = ["battleEnd", ""];
-        if (gKeeponAnime === "false") { 
-            targetPhase.push("action");
-            if ($gameTroop.isEventRunning() ||
-                SceneManager.isSceneChanging()) {
-                 return false;
+        if (!KeepAnime) { 
+            if (
+                $gameTroop.isEventRunning() ||
+                SceneManager.isSceneChanging()
+            ) {
+                return false;
             }
+            targetPhase.push("action");
         }
         return !targetPhase.includes(this._phase);
     };
