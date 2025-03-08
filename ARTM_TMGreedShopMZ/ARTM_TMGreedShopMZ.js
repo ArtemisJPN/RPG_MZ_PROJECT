@@ -8,6 +8,8 @@
 // 1.0.0 初版
 // 1.0.1 素材ウインドウの表示位置を調整
 // 1.0.2 マウススクロール時の素材ウインドウ調整
+// 1.0.3 素材ウィンドウの表示位置を「商品名の下」に設定した場合、
+//       商品名の選択位置によっては素材ウィンドウが消える不具合を修正
 //=============================================================================
 // TMPlugin - 欲張りショップ
 // バージョン: 2.2.0
@@ -28,6 +30,57 @@
  * tomoaky様作「欲張りショップ」プラグインのMZ移植版です。
  * 基本的な動作は変わっておりません。
  *
+ * 【使用方法】
+ * 
+ *   アイテム、武器、防具にメモ欄タグ（後述）を使って素材を設定します。
+ * 
+ *   イベントコマンド『プラグインコマンド』で greedShop を実行し、
+ *   直後にイベントコマンド『ショップの処理』で、素材を設定したアイテムを
+ *   商品として販売してください。
+ * 
+ *   このプラグインは RPGツクールMZ Version 1.9.0 で動作確認をしています。
+ *
+ *  
+ * プラグインコマンド:
+ * 
+ *   greedShop
+ *     このコマンドが実行された直後にショップの処理を
+ *     実行することで欲張りショップになります。
+ * 
+ *   greedCommand 買っちゃう
+ *     欲張りショップの購入コマンド名を『買っちゃう』に変更します。
+ *     この変更はセーブデータには保存されません。
+ *
+ * 
+ * メモ欄タグ（アイテム、武器、防具）:
+ * 
+ *   <mat1:I1*3>
+ *     お金以外にアイテム１番が３個必要になります。
+ *     mat2, mat3... と素材を追加していくことができます。
+ *     I の部分が W なら武器、A なら防具になります。
+ * 
+ *   <matKey:1>
+ *     mat1 タグに設定されている素材をキー素材として扱います。
+ *     キー素材を所持していない場合、商品リストから除外されます。
+ *     <matKey:1 2> というように半角スペースで区切り、複数のキー素材を
+ *     設定することもできます。（この場合、mat1 と mat2 がキー素材になる）
+ *     このタグを使うことで、レシピを所持していないと
+ *     ショップに並ばない商品などを表現することができます。
+ * 
+ *   <matG:50>
+ *     価格を50に設定します、この設定は欲張りショップが
+ *     有効になっている場合にのみ購入価格として反映されます。
+ *
+ * 
+ * メモ欄タグ（武器、防具）:
+ * 
+ *   <noConsume>
+ *     このタグを指定した武器、防具は素材として設定しても
+ *     消費されなくなります。
+ *
+ *     消耗設定が『しない』になっているアイテムを素材にした場合、
+ *     消耗しないが必要なものとして機能します。
+ * 
  * @command greedShop
  * @text 欲張りショップ
  * @desc 欲張りショップを開きます。
@@ -63,8 +116,8 @@
  *
  * @param materialMax
  * @type number
- * @desc 設定できる素材の最大数。
- * 初期値: 5
+ * @desc 設定できる素材の最大数。 初期値: 5
+ * （ver1.0.3時点：不備があるため11以上は10に固定されます。）
  * @default 5
  * 
  * @param fontRate
@@ -119,59 +172,6 @@
  * @desc 欲張りショップで購入時に鳴らす効果音
  * @default {"name":"Shop1","volume":"90","pitch":"100","pan":"0"}
  *
- * @help
- * TMPlugin - 欲張りショップ ver2.2.0
- * 
- * 使い方:
- * 
- *   アイテム、武器、防具にメモ欄タグ（後述）を使って素材を設定します。
- * 
- *   イベントコマンド『プラグインコマンド』で greedShop を実行し、
- *   直後にイベントコマンド『ショップの処理』で、素材を設定したアイテムを
- *   商品として販売してください。
- * 
- *   このプラグインは RPGツクールMV Version 1.6.1 で動作確認をしています。
- *
- *  
- * プラグインコマンド:
- * 
- *   greedShop
- *     このコマンドが実行された直後にショップの処理を
- *     実行することで欲張りショップになります。
- * 
- *   greedCommand 買っちゃう
- *     欲張りショップの購入コマンド名を『買っちゃう』に変更します。
- *     この変更はセーブデータには保存されません。
- *
- * 
- * メモ欄タグ（アイテム、武器、防具）:
- * 
- *   <mat1:I1*3>
- *     お金以外にアイテム１番が３個必要になります。
- *     mat2, mat3... と素材を追加していくことができます。
- *     I の部分が W なら武器、A なら防具になります。
- * 
- *   <matKey:1>
- *     mat1 タグに設定されている素材をキー素材として扱います。
- *     キー素材を所持していない場合、商品リストから除外されます。
- *     <matKey:1 2> というように半角スペースで区切り、複数のキー素材を
- *     設定することもできます。（この場合、mat1 と mat2 がキー素材になる）
- *     このタグを使うことで、レシピを所持していないと
- *     ショップに並ばない商品などを表現することができます。
- * 
- *   <matG:50>
- *     価格を50に設定します、この設定は欲張りショップが
- *     有効になっている場合にのみ購入価格として反映されます。
- *
- * 
- * メモ欄タグ（武器、防具）:
- * 
- *   <noConsume>
- *     このタグを指定した武器、防具は素材として設定しても
- *     消費されなくなります。
- *
- *     消耗設定が『しない』になっているアイテムを素材にした場合、
- *     消耗しないが必要なものとして機能します。
  */
 /*~struct~SoundEffect:
  *
@@ -218,7 +218,7 @@ Imported.TMGreedShop = true;
     const materialWindowWidth = +(parameters['materialWindowWidth'] || 408);
     const buyWindowWidth = +(parameters['buyWindowWidth'] || 456);
     const buyWindowHeight = +(parameters['buyWindowHeight'] || 0);
-    const materialMax = +(parameters['materialMax'] || 5);
+    const materialMax = (+(parameters['materialMax'] || 5)).clamp(0, 10);
     const fontRate = +(parameters['fontRate'] || 0.8);
     const greedCommand = parameters['greedCommand'] || '購入する';
     const needText = parameters['needText'] || '';
@@ -450,10 +450,12 @@ Imported.TMGreedShop = true;
        if ($gameTemp.isGreedShop()) {
            const bottom = this.y + this.height;
            const materialWindow = this._materialWindow;
-           if (materialWindow.y + materialWindow.windowHeight() > bottom ||
-               materialWindow.y < this.y) {
-                materialWindow.hide();
-                $gameTemp.startGreedShopScroll();
+           if (
+               materialWindow.y + materialWindow.windowHeight() > bottom ||
+               materialWindow.y < this.y
+           ){
+               materialWindow.hide();
+               $gameTemp.startGreedShopScroll();
            } else if (!SceneManager._scene._numberWindow.visible){
                materialWindow.show();
            }
@@ -483,6 +485,8 @@ Imported.TMGreedShop = true;
                 this._materialWindow.y = y;
                 if (this._materialWindow.y + this._materialWindow.height > h_helpWindowNoinc) {
                     this._materialWindow.y -= this._materialWindow.height + rect.height;
+                    const topY = this.position.y + this.rowSpacing() * 2;
+                    if (this._materialWindow.y < topY) { this._materialWindow.y = topY; }
                 }
                 break;
             case 1:  // item right
