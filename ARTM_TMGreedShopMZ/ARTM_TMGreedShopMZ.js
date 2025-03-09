@@ -6,10 +6,9 @@
 // ===================================================
 // [Version]
 // 1.0.0 初版
-// 1.0.1 素材ウインドウの表示位置を調整
+// 1.0.1 素材ウィンドウの表示位置を調整
 // 1.0.2 マウススクロール時の素材ウインドウ調整
-// 1.0.3 素材ウィンドウの表示位置を「商品名の下」に設定した場合、
-//       商品名の選択位置によっては素材ウィンドウが消える不具合を修正
+// 1.0.4 ショップ画面をはみ出ると素材ウィンドウが消える不備を修正。（ver1.0.3は取り消し）
 //=============================================================================
 // TMPlugin - 欲張りショップ
 // バージョン: 2.2.0
@@ -116,8 +115,8 @@
  *
  * @param materialMax
  * @type number
- * @desc 設定できる素材の最大数。 初期値: 5
- * （ver1.0.3時点：不備があるため11以上は10に固定されます。）
+ * @desc 設定できる素材の最大数
+ * 初期値: 5
  * @default 5
  * 
  * @param fontRate
@@ -451,8 +450,8 @@ Imported.TMGreedShop = true;
            const bottom = this.y + this.height;
            const materialWindow = this._materialWindow;
            if (
-               materialWindow.y + materialWindow.windowHeight() > bottom ||
-               materialWindow.y < this.y
+               materialWindow.y + materialWindow.windowHeight() > bottom // ||
+               //materialWindow.y < this.y
            ){
                materialWindow.hide();
                $gameTemp.startGreedShopScroll();
@@ -485,8 +484,6 @@ Imported.TMGreedShop = true;
                 this._materialWindow.y = y;
                 if (this._materialWindow.y + this._materialWindow.height > h_helpWindowNoinc) {
                     this._materialWindow.y -= this._materialWindow.height + rect.height;
-                    const topY = this.position.y + this.rowSpacing() * 2;
-                    if (this._materialWindow.y < topY) { this._materialWindow.y = topY; }
                 }
                 break;
             case 1:  // item right
