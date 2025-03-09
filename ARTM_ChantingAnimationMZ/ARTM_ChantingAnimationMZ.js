@@ -163,13 +163,13 @@
             regexp = /^ID([0-9]+),ED_FRAME([0-9]+)$/g;
             m = regexp.exec(param);
             if (m) {
-                this._chantInfoArtm = [Number(m[1]), Number(m[2])];
+                this._chantInfoArtm = [+m[1], +m[2]];
                 return;
             }
             regexp = /^ID([0-9]+)$/g;
             m = regexp.exec(param);
             if (m) {
-                this._chantInfoArtm = [Number(m[1]), -1];
+                this._chantInfoArtm = [+m[1], -1];
                 return;
             }
         }
