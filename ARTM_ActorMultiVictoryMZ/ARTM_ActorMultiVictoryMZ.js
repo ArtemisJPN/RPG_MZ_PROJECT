@@ -11,15 +11,18 @@
 // 1.1.1 勝利モーション開始直後の周期遅延を修正
 // 1.1.2 負荷軽減のためリファクタリングを実施
 // 1.1.3 デフォルトモーション画像のリジュームが遅延する不具合を修正
+// 1.2.0 プラグイン軽量化のため需要性が低いグループ機能を廃止
 // =================================================================
 /*:ja
  * @target MZ
- * @plugindesc 勝利モーションを複数モーションにするMZ専用プラグイン
+ * @plugindesc バトル勝利時の勝利ポーズを変更可能にするMZ専用プラグイン
  * @author Artemis
  *
  * @help ARTM_ActorMultiVictoryMZ.js
  *
- * 勝利モーションを複数モーションにするMZ専用プラグインです。
+ * バトル勝利時の勝利ポーズを、詠唱ポーズ、眠りポーズ、武器素振りなど
+ * ゲーム内で使用されている他のポーズに変更可能すること可能です。
+ * また、勝利2回→素振り1回→眠りポーズ など、ポーズ切替も可能です。
  *
  *-------------------------------------------------
  * 各アクターのメモ欄タグは以下の通りです。
@@ -30,7 +33,7 @@
  *
  *  モーション名^オプション1#オプション2,ループ数
  *
- *  モーション名：既存の'walk'～'dead'、グループ設定の'group1'～'group5'
+ *  モーション名：既存の'walk'～'dead'
  *  オプション1 ：指定は任意。（次項のオプションを参照）
  *  オプション2 ：指定は任意。（次項のオプションを参照）
  *  ループ数    ：１つの動作モーションを繰り返す回数
@@ -39,12 +42,8 @@
  * ・勝利2回、素振り1回、のあとに眠りポーズを繰り返す場合
  *   <AMV_MTYPE:victory,2,swing,1,sleep,0>
  *
- * ～使用例2～
- * ・勝利2回のあとにグループ設定1を繰り返す場合
- *   <AMV_MTYPE:victory,2,group1,0>
- *
  * 【補足事項】
- *   既存のモーション名については同梱の「Help_Motions.PNG」をご参照下さい。
+ *   モーション名については同梱の「Help_Motions.PNG」をご参照下さい。
  *
  * ■オプション
  * ・オプション1は以下の記述方式です。
@@ -62,46 +61,7 @@
  *   1モーション(逆走なし）行い、既存の勝利を無限ループする場合
  *   <AMV_MTYPE:walk^3#SF_Actor1_1,1>
  *
- *-------------------------------------------------
- * プラグインパラメータは以下の通りです。
- *-------------------------------------------------
- * ■グループ設定について～
- * 複数のモーションを1セットにする場合に使用する設定です。
- * メモタグの設定 <AMV_MTYPE:○○> の○○の箇所をそのまま記述可能です。
- * ※グループ設定にグループ設定名は設定できません。
- * ※グループ設定内での無限ループは無効です。
- *
  * プラグインコマンドはありません。
- *
- * @param group1
- * @type string
- * @text グループ設定1
- * @desc 1つ目のグループ設定です。
- * メモタグの設定と同様です。（ヘルプ参照）
- *
- * @param group2
- * @type string
- * @text グループ設定2
- * @desc 2つ目のグループ設定です。
- * メモタグの設定と同様です。（ヘルプ参照）
- *
- * @param group3
- * @type string
- * @text グループ設定3
- * @desc 3つ目のグループ設定です。
- * メモタグの設定と同様です。（ヘルプ参照）
- *
- * @param group4
- * @type string
- * @text グループ設定4
- * @desc 4つ目のグループ設定です。
- * メモタグの設定と同様です。（ヘルプ参照）
- *
- * @param group5
- * @type string
- * @text グループ設定5
- * @desc 5つ目のグループ設定です。
- * メモタグの設定と同様です。（ヘルプ参照）
  *
  */
  
@@ -110,25 +70,28 @@
     const PLG_NAME = "ARTM_ActorMultiVictoryMZ";
     const TAG_NAME = "AMV_MTYPE";
     const PARAMS = PluginManager.parameters(PLG_NAME);
-    const MOTIONS = [];
-    for (key in Sprite_Actor.MOTIONS) { MOTIONS.push(key); }
+    const MOTIONS = Object.keys(Sprite_Actor.MOTIONS);
+    let VALUES = "";
+    MOTIONS.forEach(m => VALUES += m + "|");
+    VALUES = VALUES.slice(0, -1).replace("\"", "");
 
     //-----------------------------------------------------------------------------
     // function
     //
     function makeParams(params) {
-        const paramsO = [];
-        const args = params.split(",");
-        for (let i = 0; i < args.length; i++) {
-            if (i % 2 !== 0) continue;
-            const type = args[i];
-            const loop = Number(args[i + 1] || "0");
-            paramsO.push({
-                "type":type,
-                "loop":loop
-            });
+        const result = [];
+        regexp = new RegExp("^((?:" + VALUES + ").*,[0-9]+,)+$", "g");
+        if (regexp.test(params + ",")) {
+            const args = params.split(",");
+            for (let i = 0; i < args.length; i++) {
+                if (i % 2 !== 0) { continue; }
+                result.push({
+                    "type": args[i],
+                    "loop": +(args[i + 1] || "0")
+                });
+            }
         }
-        return paramsO;
+        return result;
     }
 
     function getTagParams(object) {
@@ -141,10 +104,7 @@
     }
 
     function getMultiVictMode(actor) {
-        return (
-            actor._motionCInfoAMV ? 1 :
-            actor._motionInfoAMV ? 0 : -1
-        );
+        return actor._motionInfoAMV ? 0 : -1;
     }
 
     function getMotion(actor) {
@@ -161,10 +121,6 @@
 
     function getCountLM(actor) {
         return actor._loopCountAMV;
-    }
-
-    function getCountLMC(actor) {
-        return actor._loopCCountAMV;
     }
 
     function checkMSW(actor, state, sign) {
@@ -193,16 +149,11 @@
         return Math.sign(actor._loopCountAMV) === sign;
     }
 
-    function checkSignLMC(actor, sign) {
-        return Math.sign(actor._loopCCountAMV) === sign;
-    }
-
     function clearClsMembers(actor) {
         actor._motionInfoAMV = undefined;
         actor._motionCInfoAMV = undefined;
         actor._motionCIndexAMV = undefined;
         actor._loopCountAMV = undefined;
-        actor._loopCCountAMV = undefined;
         actor._patternPreAMV = undefined;
         actor._battlerNameAMV = undefined;
         actor._battlerName = actor._battlerNameDefAMV;
@@ -225,7 +176,6 @@
         const paramsTmp = PARAMS[paramss.type] || paramss[0];
         this.requestMotion(paramsTmp.type);
         this._loopCountAMV = 0;
-        this._loopCCountAMV = 0;
         this._patternPreAMV = 4;
         this._mainswAMV = 1;
     };
@@ -262,15 +212,14 @@
     };
 
     Sprite_Actor.prototype.changeMotionResizeAMV = function(type) {
-        const actor = this._actor;
         const sizeInf1 = type.split("^");
         if (sizeInf1.length === 2) {
             const sizeInf2 = sizeInf1[1].split("#");
             const size = Number(sizeInf2[0]);
             if (size > 1 && size <= 6) {
-                actor._sizeInfMaxAMV = size;
-                actor._sizeInfAMV = size;
-                updateMSW(actor, 3);
+                this._actor._sizeInfMaxAMV = size;
+                this._actor._sizeInfAMV = size;
+                updateMSW(this._actor, 3);
             }
             if (sizeInf2.length !== 2) return sizeInf1[0];
             return sizeInf1[0] + "#" + sizeInf2[1];
@@ -279,46 +228,28 @@
     };
 
     Sprite_Actor.prototype.changeMotionImageAMV = function(type) {
-        const actor = this._actor;
-        const nameDef = actor._battlerNameDefAMV;
+        const nameDef = this._actor._battlerNameDefAMV;
         const imageInf = type.split("#");
         if (imageInf.length === 2) {
-            actor._battlerNameAMV = imageInf[1];
+            this._actor._battlerNameAMV = imageInf[1];
             return imageInf[0];
         }
-        if (actor._battlerName !== nameDef) {
-            actor._battlerName = nameDef;
+        if (this._actor._battlerName !== nameDef) {
+            this._actor._battlerName = nameDef;
         }
         return type;
     };
 
     Sprite_Actor.prototype.selectMotionTypeAMV = function(type, loop) {
-        const actor = this._actor;
-        const group = PARAMS[type];
-        if (group) {
-            actor._motionCInfoAMV = makeParams(group);
-            actor._motionCIndexAMV = 0;
-            actor._loopCCountAMV = 0;
-            actor._loopCountAMV = loop > 0 ? loop : -1;
-        } else {
-            const sldType = this.changeMotionAMV(type);
-            actor.requestMotion(sldType)
-            actor._loopCountAMV = loop > 0 ? loop : -1;
-        }
-    };
-
-    Sprite_Actor.prototype.selectCMotionTypeAMV = function(type, loop) {
-        const actor = this._actor;
         const sldType = this.changeMotionAMV(type);
-        actor.requestMotion(sldType)
-        actor._loopCCountAMV = loop > 0 ? loop : -1;
+        this._actor.requestMotion(sldType)
+        this._actor._loopCountAMV = loop > 0 ? loop : -1;
     };
 
     Sprite_Actor.prototype.selectActorImageAMV = function() {
-        const actor = this._actor;
-        if (actor._battlerNameAMV) {
-            actor._battlerName = actor._battlerNameAMV;
-            actor._battlerNameAMV = undefined;
+        if (this._actor._battlerNameAMV) {
+            this._actor._battlerName = this._actor._battlerNameAMV;
+            this._actor._battlerNameAMV = undefined;
         }
     };
 
@@ -331,145 +262,67 @@
 
     const _Sprite_Actor_updateFrame = Sprite_Actor.prototype.updateFrame;
     Sprite_Actor.prototype.updateFrame = function() {
-        const actor = this._actor;
-        if (checkMSW(actor, 2, 1)) {
+        if (checkMSW(this._actor, 2, 1)) {
             this.updateFrameEntrAMV();
-        } else if (checkMSW(actor, 1, 0)) {
+        } else if (checkMSW(this._actor, 1, 0)) {
             this._pattern = 0;
-            updateMSW(actor, 2) ;
+            updateMSW(this._actor, 2) ;
         }
         _Sprite_Actor_updateFrame.call(this);
     };
 
     Sprite_Actor.prototype.updateFrameEntrAMV = function() {
-        const actor = this._actor;
         const pattern = this._pattern;
-        const mode = getMultiVictMode(actor);
-        if (mode === 1) {
-            this.updateFrameGroupAMV();
-        } else if (mode === 0) {
+        const mode = getMultiVictMode(this._actor);
+        if (mode === 0) {
             this.updateFrameNormalAMV();
         }
     };
 
     Sprite_Actor.prototype.updateFrameNormalAMV = function() {
-        const actor = this._actor;
-        const motionInfo = actor._motionInfoAMV;
-        if (checkMSW(actor, 2, 0) && checkPatternLim(this)) {
+        const motionInfo = this._actor._motionInfoAMV;
+        if (checkMSW(this._actor, 2, 0) && checkPatternLim(this)) {
              if (motionInfo[0] !== "") {
                  this.updateFrameNormalProcAMV();
-             } else if (checkSignLM(actor, 1)) {
-                 this.refreshWeaponAMV(getCountLM(actor));
-                 actor._loopCountAMV--;
-             } else if (checkSignLM(actor, -1)) {
+             } else if (checkSignLM(this._actor, 1)) {
+                 this.refreshWeaponAMV(getCountLM(this._actor));
+                 this._actor._loopCountAMV--;
+             } else if (checkSignLM(this._actor, -1)) {
                  this.refreshWeaponAMV(1);
              } else {
                  this.updateMotionDefAMV();
              }
         }
-        actor._patternPreAMV = this._pattern;
+        this._actor._patternPreAMV = this._pattern;
     };
 
     Sprite_Actor.prototype.updateFrameNormalProcAMV = function() {
-        const actor = this._actor;
-        const motionInfo = actor._motionInfoAMV;
-        if (checkSignLM(actor, 0)) { 
+        const motionInfo = this._actor._motionInfoAMV;
+        if (checkSignLM(this._actor, 0)) { 
             const motion = motionInfo.shift();
             this.selectMotionTypeAMV(motion.type, motion.loop);
             this.selectActorImageAMV();
             if (motionInfo.length === 0) {
-                actor._motionInfoAMV = [""];
+                this._actor._motionInfoAMV = [""];
             }
-            this.refreshWeaponAMV(checkSwing(actor));
-            if (!actor._motionCInfoAMV) {
-                actor._loopCountAMV--;
-            }
-        } else {
-            actor._loopCountAMV--;
-            this.refreshWeaponAMV(getCountLM(actor) + 1);
-        }
-    };
-
-    Sprite_Actor.prototype.updateFrameGroupAMV = function() {
-        const actor = this._actor;
-        if (!checkSignLM(actor, 0) && checkMSW(actor, 2, 0)) {
-             const motionCInfo = actor._motionCInfoAMV;
-             if (checkSignLMC(actor, 1) &&
-                 !this.updateFrameGroupProc1AMV()) {
-                  this.updateFrameGroupResetAMV(0);
-             } else {
-                 const motion = getMotionLMC(actor);
-                 this.selectCMotionTypeAMV(motion.type, motion.loop);
-                 this.selectActorImageAMV();
-                 this.refreshWeaponAMV(checkSwing(actor));
-                 this.updateFrameGroupResetAMV(-1);
-             }
-        }
-        if (checkSignLM(actor, 0)) {
-            actor._motionCInfoAMV = undefined;
-            actor._patternPreAMV = 4;
-        } else {
-            actor._patternPreAMV = this._pattern;
-        }
-    };
-
-    Sprite_Actor.prototype.updateFrameGroupProc1AMV = function() {
-        const actor = this._actor;
-        const motionCInfo = actor._motionCInfoAMV;
-        let index = actor._motionCIndexAMV;
-        if (checkPatternLim(this)) {
-             this.updateFrameGroupProc2AMV();
-        }
-        if (checkSignLMC(actor, 1)) return false;
-        if (++index >= motionCInfo.length) {
-            actor._motionCIndexAMV = 0;
-            if (checkSignLM(actor, 1)) actor._loopCountAMV--;
-            return false;
-        }
-        actor._motionCIndexAMV = index;
-        return true;
-    };
-
-    Sprite_Actor.prototype.updateFrameGroupProc2AMV = function() {
-        const actor = this._actor;
-        if (actor._sizeInfAMV < 0) {
-            actor._sizeInfAMV = undefined;
-            this.refreshWeaponAMV(1);
-        } else if (actor._motionInfoAMV) {
-            actor._loopCCountAMV--;
-            this.refreshWeaponAMV(getCountLMC(actor));
-        } else {
-            this.updateMotionDefAMV();
-        }
-    };
-
-    Sprite_Actor.prototype.updateFrameGroupResetAMV = function(base) {
-        const actor = this._actor;
-        if (actor._motionInfoAMV[0] === "" && getCountLM(actor) === base) {
-            if (base === 0) {
-                actor._motionInfoAMV = undefined;
-                this.updateMotionDefAMV();
-                actor._motionCInfoAMV = undefined;
-            } else if (getCountLMC(actor) === base) {
-                actor._motionCInfoAMV = undefined;
+            this.refreshWeaponAMV(checkSwing(this._actor));
+            if (!this._actor._motionCInfoAMV) {
+                this._actor._loopCountAMV--;
             }
         } else {
-            if (base === -1 && getCountLMC(actor) === base) {
-                actor._motionCInfoAMV = undefined;
-            }
+            this._actor._loopCountAMV--;
+            this.refreshWeaponAMV(getCountLM(this._actor) + 1);
         }
     };
 
     Sprite_Actor.prototype.refreshWeaponAMV = function(count) {
-        const actor = this._actor;
-        if (getMotion(actor) === "swing" && count > 0) {
-            actor.performAttack();
+        if (getMotion(this._actor) === "swing" && count > 0) {
+            this._actor.performAttack();
         }
     };
 
     const _Sprite_Actor_updateMotionCount = Sprite_Actor.prototype.updateMotionCount;
     Sprite_Actor.prototype.updateMotionCount = function() {
-        const actor = this._actor;
         if (this.isResizeImageAMV()) {
             this.updateMotionCountEntr();
         } else {
@@ -478,7 +331,6 @@
     };
 
     Sprite_Actor.prototype.updateMotionCountEntr = function() {
-        const actor = this._actor;
         if (this._motion && ++this._motionCount >= this.motionSpeed()) {
             this.updateMotionCountAMV(2);
             this._pattern = (this._pattern + 1) % 3
@@ -487,74 +339,49 @@
     };
 
     Sprite_Actor.prototype.updateMotionCountAMV = function(base) {
-        const actor = this._actor;
         if (this._pattern === base) {
-            const index = actor._resizeIdxAMV;
-            const next = --actor._sizeInfAMV === 0;
+            const index = this._actor._resizeIdxAMV;
+            const next = --this._actor._sizeInfAMV === 0;
             if (!next) {
-                actor._resizeIdxAMV = Math.min(index + 1, 17);
-                this._motion = getMotionObj(actor);
+                this._actor._resizeIdxAMV = Math.min(index + 1, 17);
+                this._motion = getMotionObj(this._actor);
             } else {
                 this.updateMotionCountProcAMV();
-                this._motion = getMotionObj(actor);
+                this._motion = getMotionObj(this._actor);
             }
         }
     };
 
     Sprite_Actor.prototype.updateMotionCountProcAMV = function() {
-        const actor = this._actor;
-        if (getMultiVictMode(actor) === 0) {
+        if (getMultiVictMode(this._actor) === 0) {
             this.updateMotionCountNProcAMV();
-        } else {
-            this.updateMotionCountGProcAMV();
-        }
-    };
-
-    Sprite_Actor.prototype.updateMotionCountGProcAMV = function() {
-        const actor = this._actor;
-        actor._loopCCountAMV--;
-        if (checkSignLMC(actor, 0) && getCountLM(actor) === 1) {
-             actor._motionCInfoAMV = undefined;
-             this.updateMotionDefAMV();
-             updateMSW(actor, 2);
-        } else {
-            const motion = getMotionLMC(actor);
-            actor._loopCountAMV--;
-            actor._loopCCountAMV = motion.loop;
-            actor._patternPreAMV = 4;
-            this._pattern = -1;
-            actor._resizeIdxAMV = Math.max(index - 2, 0);
-            actor._sizeInfAMV = actor._sizeInfMaxAMV;
-            this._motion = getMotionObj(actor);
         }
     };
 
     Sprite_Actor.prototype.updateMotionCountNProcAMV = function() {
-        const actor = this._actor;
-        const index = actor._motionCIndexAMV;
-        actor._loopCountAMV--;
-        if (checkSignLM(actor, -1)) {
-            if (actor._motionInfoAMV.length === 0) {
+        const index = this._actor._motionCIndexAMV;
+        this._actor._loopCountAMV--;
+        if (checkSignLM(this._actor, -1)) {
+            if (this._actor._motionInfoAMV.length === 0) {
                 this.updateMotionDefAMV();
             }
-            actor._patternPreAMV = 4;
-            actor._loopCountAMV = 0;
-            updateMSW(actor, 2);
+            this._actor._patternPreAMV = 4;
+            this._actor._loopCountAMV = 0;
+            updateMSW(this._actor, 2);
         } else {
-            actor._patternPreAMV = 4;
-            actor._resizeIdxAMV = Math.max(index - 2, 0);
-            actor._sizeInfAMV = actor._sizeInfMaxAMV;
-            this._motion = getMotionObj(actor);
+            this._actor._patternPreAMV = 4;
+            this._actor._resizeIdxAMV = Math.max(index - 2, 0);
+            this._actor._sizeInfAMV = this._actor._sizeInfMaxAMV;
+            this._motion = getMotionObj(this._actor);
         }
     };
 
     Sprite_Actor.prototype.updateMotionDefAMV = function() {
-        const actor = this._actor;
         const typeI = "victory";
         const typeO = this.changeMotionAMV(typeI);
-        actor.requestMotion(typeO);
-        actor._motionInfoAMV = undefined;
-        actor._sizeInfAMV = undefined;
+        this._actor.requestMotion(typeO);
+        this._actor._motionInfoAMV = undefined;
+        this._actor._sizeInfAMV = undefined;
         this.updateBitmap();
         this.setupMotion();
     };
