@@ -14,6 +14,7 @@
 //       その他のパフォーマンス改善
 // 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
 // 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
+// 1.5.2 終了フレームの指定に不具合があったため修正
 // =============================================================================
 /*:ja
  * @target MZ
@@ -34,17 +35,17 @@
  *【書式】
  * 　<CA_INFO:ID(アニメーションID),ED_FRAME(終了フレーム)>
  *
- * 　【記載例1】
- * 　　ID：0050のアニメーションをループ再生する場合
- * 　　　<CA_INFO:ID50>
+ * 　【記載例】
+ * 　　ID：0050のアニメーション(120フレーム※)を途切れなくループ再生する場合
+ * 　　　<CA_INFO:ID50,ED_FRAME120>
  *
- *
- * 　【記載例2】
- * 　　途切れることなくループさせたい場合は、ED_FRAMEの値を調整して下さい。
- * 　　Effekseerツールで
- * 　　｛開始フレーム：-2,生存フレーム：120｝
- * 　　に設定したデータの場合、
- * 　　　<CA_INFO:ID50,ED_FRAME113>
+ * 　　※開始フレームが0より大きい場合は、
+ * 　　　Effekseerツールで生成開始時間を負値にして下さい。
+ * 　　　例として、開始フレーム2/終了フレーム120 の場合は、
+ * 　　　生成開始時間に-2を設定してアニメーションを再保存して下さい。
+ * 
+ * 　　　上記を実施してもループ間がぶつ切りする場合は、
+ * 　　　ED_FRAMEの値を調整して下さい。
  * 
  * ■プラグインパラメータについて
  * 詠唱アニメーション継続設定
@@ -98,6 +99,19 @@
         return this._animationQueueArtm.shift();
     };
 
+    Game_Temp.prototype.isKeepAnimation_Artm = function() {
+        const targetPhase = ["battleEnd", ""];
+        if (!KeepAnime) { 
+            if (
+                $gameTroop.isEventRunning() ||
+                SceneManager.isSceneChanging()
+            ) { return false; }
+            targetPhase.push("action");
+        }
+        return !targetPhase.includes(BattleManager._phase);
+    };
+
+
     //-----------------------------------------------------------------------------
     // Game_BattlerBase
     //
@@ -119,14 +133,6 @@
 
     Game_BattlerBase.prototype.endAnimation_Artm = function() {
         this._animationPlayingArtm = false;
-    };
-
-    Game_BattlerBase.prototype.initAnimationCount_Artm = function() {
-        this._animationCountArtm = 0;
-    };
-
-    Game_BattlerBase.prototype.nextAnimationCount_Artm = function() {
-        return ++this._animationCountArtm;
     };
 
     Game_BattlerBase.prototype.initAnimationPitch_Artm = function(speed) {
@@ -151,25 +157,18 @@
         return (
             this._battler._tpbState === "casting" &&
             this._tpbStatePrevArtm !== "casting" &&
-            BattleManager.isKeepAnimation_Artm()
+            $gameTemp.isKeepAnimation_Artm()
         );
     };
 
     Sprite_Battler.prototype.updateChantInfo_Artm = function() {
         const item = this._battler.action(0)?._item;
-        let regexp, m;
         if (item?.isSkill()) {
             const param = item.object().meta[TAG_NAME];
-            regexp = /^ID([0-9]+),ED_FRAME([0-9]+)$/g;
-            m = regexp.exec(param);
-            if (m) {
-                this._chantInfoArtm = [+m[1], +m[2]];
-                return;
-            }
-            regexp = /^ID([0-9]+)$/g;
-            m = regexp.exec(param);
-            if (m) {
-                this._chantInfoArtm = [+m[1], -1];
+            const regexp = /^ID([0-9]+),ED_FRAME([0-9]+)$/g;
+            const match = regexp.exec(param);
+            if (match) {
+                this._chantInfoArtm = [+match[1], ++match[2]];
                 return;
             }
         }
@@ -183,27 +182,31 @@
     Sprite_Battler.prototype.updateAnimation_Artm = function() {
         if (this.canChantAnime_Artm()) {
             this.updateChantInfo_Artm();
-            this.requestAnimation_Artm(this.chantInfo_Artm()[0]);
+            this.requestAnimation_Artm();
         }
-        if (BattleManager.isKeepAnimation_Artm()) {
+        if ($gameTemp.isKeepAnimation_Artm()) {
             this._tpbStatePrevArtm = this._battler._tpbState;
         }
     };
 
-    Sprite_Battler.prototype.requestAnimation_Artm = function(animationId) {
-        if (animationId <= 0) { return; } 
-        const battler = this._battler;
-        let speed = 0;
-        if (battler.action(0)) {
-            speed = battler.action(0).item().speed;
+    Sprite_Battler.prototype.requestAnimation_Artm = function() {
+        const animationId = this.chantInfo_Artm()[0];
+        if (animationId > 0) { 
+            let speed = 0;
+            const battler = this._battler;
+            if (battler.action(0)) {
+                speed = battler.action(0).item().speed;
+            }
+            if (speed < 0 && !battler.animationPlaying_Artm()) {
+                $gameTemp.requestAnimation_Artm(this, animationId);
+            }
         }
-        if (speed < 0 && !battler.animationPlaying_Artm()) {
-            $gameTemp.requestAnimation_Artm(this, animationId);
-            battler.initAnimationCount_Artm();
-        } else if (battler.nextAnimationCount_Artm() > battler._animationPitchArtm) {
-            battler.initAnimationCount_Artm();
-            battler.endAnimation_Artm();
-        };
+    };
+
+    Sprite_Battler.prototype.updateTpbStetePre_Artm = function(flag) {
+        if (flag) {
+            this._tpbStatePrevArtm = "waiting";
+        }
     };
 
     //-----------------------------------------------------------------------------
@@ -258,26 +261,18 @@
         const animation = $dataAnimations[request.animationId];
         const targets = request.targets;
         const mirror = request.mirror;
-        let delay = this.animationBaseDelay();
-        const nextDelay = this.animationNextDelay();
-        if (this.isAnimationForEach(animation)) {
-            this.createAnimationSprite_Artm(sprite, targets, animation, mirror, delay);
-            delay += nextDelay;
-        } else {
-            this.createAnimationSprite_Artm(sprite, targets, animation, mirror, delay);
-        }
+        this.createAnimationSprite_Artm(sprite, targets, animation, mirror);
     };
 
     Spriteset_Battle.prototype.createAnimationSprite_Artm = function(
-        sprite, targets, animation, mirror, delay
+        sprite, targets, animation, mirror
     ) {
         const spriteAnimation = new Sprite_Animation_Artm(sprite);
         const targetSprites = this.makeTargetSprites(targets);
         const baseDelay = this.animationBaseDelay();
-        const previous = delay > baseDelay ? this.lastAnimationSprite() : null;
         if (this.animationShouldMirror(targets[0])) { mirror = !mirror; }
         spriteAnimation.targetObjects = targets;
-        spriteAnimation.setup(targetSprites, animation, mirror, delay, previous);
+        spriteAnimation.setup(targetSprites, animation, mirror, 0, null);
         spriteAnimation._animation.displayType = -1;
         targets[0].initAnimationPitch_Artm(spriteAnimation._animation.speed);
         this._effectsContainer.addChild(spriteAnimation);
@@ -304,15 +299,15 @@
     Spriteset_Battle.prototype.checkEnd_Artm = function(sprite) {
         const spriteBase = sprite.spriteBase();
         const endFrameIndex = spriteBase.chantInfo_Artm()[1];
-        const flags = [!sprite.isPlaying(), false];
-        flags.push(spriteBase._battler._tpbState === "casting"); 
-        flags.push(endFrameIndex === -1);
-        flags.push(sprite._frameIndex === endFrameIndex);
-        if (!BattleManager.isKeepAnimation_Artm()) {
+        const flags = [
+            !sprite.isPlaying(), false,
+            sprite._frameIndex === endFrameIndex,
+            spriteBase._battler._tpbState === "casting",
+            endFrameIndex === -1,
+        ];
+        if (!$gameTemp.isKeepAnimation_Artm()) {
+            spriteBase.updateTpbStetePre_Artm(flags[3]);
             flags[1] = true;
-            if (flags[2]) {
-                spriteBase._tpbStatePrevArtm = "waiting";
-            }
         }
         return flags;
     };
@@ -322,13 +317,11 @@
             const flags = this.checkEnd_Artm(sprite);
             if (flags[0] || flags[1]) {
                 this.removeAnimation_Artm(sprite);
-                if (flags[2] && flags[3]) {
+                if (flags[3] && flags[4]) {
                     this.insertQueue_Artm(sprite);
                 }
-            } else if (flags[2] && flags[4]) {
+            } else if (flags[3] && flags[2]) {
                 this.insertQueue_Artm(sprite);
-            } else if (!flags[2]) {
-                this.removeAnimation_Artm(sprite);
             }
         }
         for (const d of this._queueArtm) {
@@ -370,18 +363,6 @@
         _BattleManager_startAction.call(this);
         const subject = this._subject;
         subject.endAnimation_Artm();
-    };
-
-    BattleManager.isKeepAnimation_Artm = function() {
-        const targetPhase = ["battleEnd", ""];
-        if (!KeepAnime) { 
-            if (
-                $gameTroop.isEventRunning() ||
-                SceneManager.isSceneChanging()
-            ) { return false; }
-            targetPhase.push("action");
-        }
-        return !targetPhase.includes(this._phase);
     };
 
 })();
