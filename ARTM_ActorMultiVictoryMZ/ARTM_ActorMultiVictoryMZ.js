@@ -14,6 +14,7 @@
 // 1.2.0 プラグイン軽量化のため需要性が低いグループ機能を廃止
 // 1.2.1 パフォーマンス改善
 //       画像変更後に自動で元画像へ戻らないよう仕様変更
+// 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
 // =================================================================
 /*:ja
  * @target MZ
@@ -71,7 +72,7 @@
 
     let VALUES = "", STACK_WK = [];
     const TAG = "AMV_MTYPE";
-    const DELIMITER = {"size": "^", "image": "#"};
+    const DLMTR = {"size": "^", "image": "#"};
     const MOTIONS = Object.keys(Sprite_Actor.MOTIONS);
     MOTIONS.forEach(m => VALUES += m + "|");
     VALUES = VALUES.slice(0, -1).replace("\"", "");
@@ -104,12 +105,6 @@
     //-----------------------------------------------------------------------------
     // Game_Party
     //
-    Game_Party.prototype.setupVictoryInfo_Artm = function() {
-        for (const member of this.members()) {
-            member.nextPhase_Artm("none");
-        }
-    };
-
     const _Game_Party_performVictory = Game_Party.prototype.performVictory;
     Game_Party.prototype.performVictory = function() {
         _Game_Party_performVictory.call(this);
@@ -143,6 +138,12 @@
         this._phaseArtm = "none";
     };
 
+    const _Game_Actor_setup = Game_Actor.prototype.setup;
+    Game_Actor.prototype.setup = function(actorId) {
+        _Game_Actor_setup.call(this, actorId);
+        this._paramsArtem = getParams(this);
+    };
+
     Game_Actor.prototype.setParams_Artm = function(params) {
         this._motionsArtm = {
             "motions": params.clone(),
@@ -154,7 +155,7 @@
     const _Game_Actor_performVictory = Game_Actor.prototype.performVictory;
     Game_Actor.prototype.performVictory = function() {
         _Game_Actor_performVictory.call(this);
-        const params = getParams(this);
+        const params = this._paramsArtem;
         if (this.canMove() && params.length > 0) {
             this.requestMotion(params[0].type);
             this.setParams_Artm(params);       
@@ -169,7 +170,7 @@
     Game_Actor.prototype.getRegexpPattern_Artm = function() {
         return ([
             "^((?:" + VALUES + ").*,[0-9]+,)+$",
-            "^([^\\" + DELIMITER.size + "]+)\\" + DELIMITER.size + "([0-9]+)#(.+)$"
+            "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size + "([0-9]+)#(.+)$"
         ]);
     };
 
@@ -199,8 +200,8 @@
     };
 
     Sprite_Actor.prototype.setBitmaps_Artm = function(tag) {
-        if (tag.indexOf(DELIMITER.image) !== -1) {
-            const name = tag.split(DELIMITER.image)[1];
+        if (tag.indexOf(DLMTR.image) !== -1) {
+            const name = tag.split(DLMTR.image)[1];
             if (!this._bitmapsArtm[name]) {
                 this._bitmapsArtm[name] = ImageManager.loadSvActor(name);
             }
@@ -214,7 +215,9 @@
                 this._pattern = 0;
                 this._motionsArtm = this._actor._motionsArtm;
                 this.nextPhase_Artm("processing");
-                break;
+                if (this.existMotion_Artm()) {
+                    break;
+                }
             case "processing":
                 this.updateFrame_Artm();
                 this.nextPattern_Artm();
@@ -262,7 +265,13 @@
     Sprite_Actor.prototype.updateMotionCount = function() {
         if (this.checkResize_Artm()) {
             if (++this._motionCount >= this.motionSpeed()) {
-                this.updateMotionCount_Artm();
+                if (this._pattern !== 2) {
+                    ;
+                } else if (this.checkSizeEnd_Artm()) {
+                    this.updateMotionCountLooping_Artm()
+                } else if (this.existMotions_Artm()) {
+                    this.updateMotionCountLooped_Artm();
+                }
                 this._pattern = (this._pattern + 1) % 3
                 this._motionCount = 0;
             }
@@ -271,19 +280,12 @@
         _Sprite_Actor_updateMotionCount.call(this);
     };
 
-    Sprite_Actor.prototype.updateMotionCount_Artm = function() {
-        if (this._pattern !== 2) {
-            return;
-        } else if (--this._sizeCountArtm > 0) {
-            this._indexArtm = Math.min(this._indexArtm + 1, 17);
-            this._motion = this.motion_Artm();
-        } else if (this.existMotion_Artm()) {
-            this.updateMotionCountMain_Artm();
-            this._motion = this.motion_Artm();
-        }
+    Sprite_Actor.prototype.updateMotionCountLooping_Artm = function() {
+        this._indexArtm = Math.min(this._indexArtm + 1, 17);
+        this._motion = this.motion_Artm();
     };
 
-    Sprite_Actor.prototype.updateMotionCountMain_Artm = function() {
+    Sprite_Actor.prototype.updateMotionCountLooped_Artm = function() {
         this.decrementCount_Artm();
         if (this.checkMotion_Artm(-1)) {
             this._motionsArtm.pattern = 4;
@@ -294,6 +296,7 @@
             this._indexArtm = 0;
             this._sizeCountArtm = this._sizeCountMaxArtm;
         }
+        this._motion = this.motion_Artm();
     };
 
     Sprite_Actor.prototype.changeMotion_Artm = function(typeI) {
@@ -305,7 +308,7 @@
     };
 
     Sprite_Actor.prototype.changeMotionImage_Artm = function(type) {
-        const imageInfo = type.split(DELIMITER.image);
+        const imageInfo = type.split(DLMTR.image);
         const bitmap = this._bitmapsArtm[imageInfo[1]];
         if (imageInfo[1]) {
             if (this._mainSprite.bitmap !== bitmap) {
@@ -326,7 +329,7 @@
                 this._sizeCountMaxArtm = +match[2];
                 this.nextPhase_Artm("changing");
             }
-            return match[1] + DELIMITER.image + match[3];
+            return match[1] + DLMTR.image + match[3];
         }
         return type;
     };
@@ -336,7 +339,11 @@
     };
 
     Sprite_Actor.prototype.checkResize_Artm = function() {
-        return this.existMotion_Artm() && this._sizeCountArtm > 0;
+        return this.existMotions_Artm() && this._sizeCountArtm > 0;
+    };
+
+    Sprite_Actor.prototype.checkSizeEnd_Artm = function() {
+        return --this._sizeCountArtm > 0;
     };
 
     Sprite_Actor.prototype.checkSwing_Artm = function() {
@@ -348,6 +355,10 @@
     };
 
     Sprite_Actor.prototype.existMotion_Artm = function() {
+        return MOTIONS[this._motionsArtm?.motions[0]?.type];
+    };
+
+    Sprite_Actor.prototype.existMotions_Artm = function() {
         return !!this._motionsArtm?.motions && this._motion;
     };
 
@@ -375,7 +386,7 @@
         const phase = this._actor._phaseArtm;
         return (
             ["processing", "changing"].includes(phase) ?
-            (this.existMotion_Artm() ? phase : "") : phase
+            (this.existMotions_Artm() ? phase : "") : phase
         );
     };
 
