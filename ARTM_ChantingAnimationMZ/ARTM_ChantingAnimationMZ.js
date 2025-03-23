@@ -13,6 +13,7 @@
 // 1.4.0 「ARTM_EnemyAsActorSpriteMZ」を廃止したため、関連する対応を削除
 //       その他のパフォーマンス改善
 // 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
+// 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
 // =============================================================================
 /*:ja
  * @target MZ
@@ -35,17 +36,16 @@
  *
  * 　【記載例1】
  * 　　ID：0050のアニメーションをループ再生する場合
- * 　　<CA_INFO:ID50>
+ * 　　　<CA_INFO:ID50>
  *
- * 　　途切れることなくループさせたい場合は、ED_FRAMEの値を調整して下さい。
  *
  * 　【記載例2】
- * 　　例としてEffekseerツールで開始フレーム：-2,生存フレーム：120の場合、
- * 　　<CA_INFO:ID50,ED_FRAME113>
+ * 　　途切れることなくループさせたい場合は、ED_FRAMEの値を調整して下さい。
+ * 　　Effekseerツールで
+ * 　　｛開始フレーム：-2,生存フレーム：120｝
+ * 　　に設定したデータの場合、
+ * 　　　<CA_INFO:ID50,ED_FRAME113>
  * 
- * ■アニメーションの制約について
- * 「Effekseer」ツール以外で編集したデータは動作対象外です。
- *
  * ■プラグインパラメータについて
  * 詠唱アニメーション継続設定
  *    ON:中断シーンでも詠唱アニメーションを継続します。
@@ -244,16 +244,16 @@
     };
 
     //-----------------------------------------------------------------------------
-    // Spriteset_Base
+    // Spriteset_Battle
     //
-    const _Spriteset_Base_initialize = Spriteset_Base.prototype.initialize;
-    Spriteset_Base.prototype.initialize = function() {
-        _Spriteset_Base_initialize.call(this);
+    const _Spriteset_Battle_initialize = Spriteset_Battle.prototype.initialize;
+    Spriteset_Battle.prototype.initialize = function() {
+        _Spriteset_Battle_initialize.call(this);
         this._animationSpritesArtm = [];
         this._queueArtm = [];
     };
 
-    Spriteset_Base.prototype.createAnimation_Artm = function(request) {
+    Spriteset_Battle.prototype.createAnimation_Artm = function(request) {
         const sprite = request.spriteBattler;
         const animation = $dataAnimations[request.animationId];
         const targets = request.targets;
@@ -268,7 +268,7 @@
         }
     };
 
-    Spriteset_Base.prototype.createAnimationSprite_Artm = function(
+    Spriteset_Battle.prototype.createAnimationSprite_Artm = function(
         sprite, targets, animation, mirror, delay
     ) {
         const spriteAnimation = new Sprite_Animation_Artm(sprite);
@@ -284,15 +284,15 @@
         this._animationSpritesArtm.push(spriteAnimation);
     };
 
-    const _Spriteset_Base_updateAnimations = Spriteset_Base.prototype.updateAnimations;
-    Spriteset_Base.prototype.updateAnimations = function() {
-        _Spriteset_Base_updateAnimations.call(this);
+    const _Spriteset_Battle_updateAnimations = Spriteset_Battle.prototype.updateAnimations;
+    Spriteset_Battle.prototype.updateAnimations = function() {
+        _Spriteset_Battle_updateAnimations.call(this);
         this._queueArtm = [];
         this.updateAnimations_Artm();
         this.processAnimationRequests_Artm();
     };
 
-    Spriteset_Base.prototype.insertQueue_Artm = function(sprite) {
+    Spriteset_Battle.prototype.insertQueue_Artm = function(sprite) {
         const spriteBase = sprite.spriteBase();
         const sprites = this._animationSpritesArtm;
         if (sprites.filter(s => s.spriteBase() === spriteBase).length < 2)
@@ -301,7 +301,7 @@
         }
     };
 
-    Spriteset_Base.prototype.checkEnd_Artm = function(sprite) {
+    Spriteset_Battle.prototype.checkEnd_Artm = function(sprite) {
         const spriteBase = sprite.spriteBase();
         const endFrameIndex = spriteBase.chantInfo_Artm()[1];
         const flags = [!sprite.isPlaying(), false];
@@ -317,7 +317,7 @@
         return flags;
     };
 
-    Spriteset_Base.prototype.updateAnimations_Artm = function() {
+    Spriteset_Battle.prototype.updateAnimations_Artm = function() {
         for (const sprite of this._animationSpritesArtm) {
             const flags = this.checkEnd_Artm(sprite);
             if (flags[0] || flags[1]) {
@@ -334,9 +334,9 @@
         for (const d of this._queueArtm) {
             $gameTemp.requestAnimation_Artm(d[0], d[1]);
         }
-    }
+    };
 
-    Spriteset_Base.prototype.processAnimationRequests_Artm = function() {
+    Spriteset_Battle.prototype.processAnimationRequests_Artm = function() {
         for (;;) {
             const request = $gameTemp.retrieveAnimation_Artm();
             if (request) {
@@ -347,7 +347,7 @@
         }
     };
 
-    Spriteset_Base.prototype.removeAnimation_Artm = function(sprite) {
+    Spriteset_Battle.prototype.removeAnimation_Artm = function(sprite) {
         if (!sprite.isPlaying()) {
             sprite.spriteBase().setBlendColor([0, 0, 0, 0]);
         }
