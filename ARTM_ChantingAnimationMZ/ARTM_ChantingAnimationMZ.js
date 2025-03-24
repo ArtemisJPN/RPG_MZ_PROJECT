@@ -10,8 +10,6 @@
 // 1.3.0 アクションフェーズ時の詠唱アニメーション継続ON/OFFを追加
 //       詠唱完了後もアニメーションのフラッシュ色が残り続ける不具合を解消
 // 1.3.1 詠唱アニメーション継続OFF設定時、イベント発生中も中断するよう対応
-// 1.4.0 「ARTM_EnemyAsActorSpriteMZ」を廃止したため、関連する対応を削除
-//       その他のパフォーマンス改善
 // 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
 // 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
 // 1.5.2 終了フレームの指定に不具合があったため修正
@@ -353,11 +351,6 @@
     //-----------------------------------------------------------------------------
     // BattleManager
     //
-    const _BattleManager_initMembers = BattleManager.initMembers;
-    BattleManager.initMembers = function() {
-        _BattleManager_initMembers.call(this);
-    };
-
     const _BattleManager_startAction = BattleManager.startAction;
     BattleManager.startAction = function() {
         _BattleManager_startAction.call(this);
