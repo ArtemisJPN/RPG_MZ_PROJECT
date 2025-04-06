@@ -15,17 +15,18 @@
 // 1.2.1 パフォーマンス改善
 //       画像変更後に自動で元画像へ戻らないよう仕様変更
 // 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
+// 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
 // =================================================================
 /*:ja
  * @target MZ
- * @plugindesc バトル勝利時の勝利ポーズを変更可能にするMZ専用プラグイン
+ * @plugindesc バトル勝利時の勝利モーションを変更可能にするMZ専用プラグイン
  * @author Artemis
  *
  * @help ARTM_ActorMultiVictoryMZ.js
  *
- * バトル勝利時の勝利ポーズを、詠唱ポーズ、眠りポーズ、武器素振りなど
- * ゲーム内で使用されている他のポーズに変更可能すること可能です。
- * また、勝利2回→素振り1回→眠りポーズ など、ポーズ切替も可能です。
+ * バトル勝利時の勝利モーションを、詠唱、眠り、武器素振りなど
+ * ゲーム内で使用されている他のモーションに変更することができます。
+ * また、勝利2回→素振り1回→眠り など、回数指定も可能です。
  *
  *-------------------------------------------------
  * 各アクターのメモ欄タグは以下の通りです。
@@ -34,15 +35,19 @@
  * <AMV_MTYPE:1つ目のモーション設定,2つ目のモーション設定,…>
  * モーション設定は以下の記述方式です。
  *
- *  モーション名^オプション1#オプション2,ループ数
+ *  モーション名^オプション2#オプション1,ループ回数;オプション3;
  *
  *  モーション名：既存の'walk'～'dead'
  *  オプション1 ：指定は任意。（次項のオプションを参照）
  *  オプション2 ：指定は任意。（次項のオプションを参照）
- *  ループ数    ：１つの動作モーションを繰り返す回数
+ *  　　　　　 　 ※オプション2は、オプション1の指定が必須です。
+ *  ループ回数  ：１つの動作モーションを繰り返す回数。
+ *  　　　　　 　 最後のモーションのループ回数には、必ず'0'を指定して下さい。
+ *  オプション3 ：指定は任意。（次項のオプションを参照）
+ *  　　　　　 　 ※オプション3は、オプション2の指定が必須です。
  *
- * ～使用例1～
- * ・勝利2回、素振り1回、のあとに眠りポーズを繰り返す場合
+ * ～使用例１～
+ * ・勝利2回、素振り1回、のあとに眠りを繰り返す場合
  *   <AMV_MTYPE:victory,2,swing,1,sleep,0>
  *
  * 【補足事項】
@@ -50,19 +55,27 @@
  *
  * ■オプション
  * ・オプション1は以下の記述方式です。
- *  ^サイズ  ※2～6の整数
- *
- * ・オプション2は以下の記述方式です。
  *  #画像名
  *
- * ～使用例3～
+ * ～使用例２～
  * ・画像"SF_Actor1_1"に切り替える場合
  *   <AMV_MTYPE:victory#SF_Actor1_1,0>
  *
- * ～使用例4～
- * ・画像"SF_Actor1_1"に切り替えてwalk～chantの3x3を
- *   1モーション(逆走なし）行う場合
+ * ・オプション2は以下の記述方式です。
+ *  ^サイズ  ※2～6の整数
+ *
+ * ～使用例３～
+ * ・画像"SF_Actor1_1"に切り替えてwalk～chantの3x3=9枚の画像を
+ *   一方通行で1周表示する場合
  *   <AMV_MTYPE:walk^3#SF_Actor1_1,1>
+ *
+ * ・オプション3は以下の記述方式です。
+ *  1枚目の表示時間;2枚目の表示時間;3枚目の表示時間; …(枚数分の繰り返し）
+ *
+ * ～使用例４～
+ * ・使用例３を徐々に早く表示するために、
+ * 　スピード値を、12→11→ … →5→4 と変化させる場合
+ *   <AMV_MTYPE:walk^3#SF_Actor1_1,1;12;11;10;9;8;7;6;5;4>
  *
  * プラグインコマンドはありません。
  *
@@ -74,8 +87,18 @@
     const TAG = "AMV_MTYPE";
     const DLMTR = {"size": "^", "image": "#"};
     const MOTIONS = Object.keys(Sprite_Actor.MOTIONS);
-    MOTIONS.forEach(m => VALUES += m + "|");
     VALUES = VALUES.slice(0, -1).replace("\"", "");
+    MOTIONS.forEach(m => VALUES += m + "|");
+
+    //-----------------------------------------------------------------------------
+    // regexp patterns
+    //
+    const REGEXP_PATTERN = [
+        "^((?:" + VALUES + ").*,[0-9]+(?:;[0-9]+)*,)+$",
+        "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size +
+            "([0-9]+)" + DLMTR.image + "(.+)$",
+        "^(?:\\d{1,2};).+$"
+    ];
 
     //-----------------------------------------------------------------------------
     // function
@@ -87,19 +110,28 @@
 
     function _makeParams(obj, params) {
         const result = [];
-        const pattern = obj.getRegexpPattern_Artm()[0];
-        regexp = new RegExp(pattern, "g");
+        const regexp = new RegExp(REGEXP_PATTERN[0], "g");
         if (regexp.test(params + ",")) {
             const args = params.split(",");
             for (let i = 0; i < args.length; i++) {
                 if (i % 2 !== 0) { continue; }
-                result.push({
-                    "type": args[i],
-                    "loop": +(args[i + 1] || "0")
-                });
+                result.push(_makeParam(args, i));
             }
         }
         return result;
+    }
+
+    function _makeParam(args, index) {
+        const regexp = new RegExp(REGEXP_PATTERN[2], "g");
+        const match = regexp.exec(args[index + 1]);
+        const split = match ? match[0].split(";") : null;
+        const loop = split ? split.shift() : args[index + 1];
+        const speed = split ? split : null; 
+        return ({
+            "type": args[index],
+            "loop": +loop,
+            "speed": speed
+        });
     }
 
     //-----------------------------------------------------------------------------
@@ -167,13 +199,6 @@
         this._phaseArtm = state;
     };
 
-    Game_Actor.prototype.getRegexpPattern_Artm = function() {
-        return ([
-            "^((?:" + VALUES + ").*,[0-9]+,)+$",
-            "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size + "([0-9]+)#(.+)$"
-        ]);
-    };
-
     //-----------------------------------------------------------------------------
     // Sprite_Actor
     //
@@ -236,9 +261,8 @@
             } else if (this.checkMotion_Artm(1)) {
                 this.refreshWeapon_Artm(this.loopCount_Artm());
                 this.decrementCount_Artm();
-            } else if (this.checkMotion_Artm(-1)) {
-                this.refreshWeapon_Artm();
             }
+            this.refreshWeapon_Artm();
         }
     };
 
@@ -264,7 +288,7 @@
     const _Sprite_Actor_updateMotionCount = Sprite_Actor.prototype.updateMotionCount;
     Sprite_Actor.prototype.updateMotionCount = function() {
         if (this.checkResize_Artm()) {
-            if (++this._motionCount >= this.motionSpeed()) {
+            if (++this._motionCount >= this.motionSpeed_Artm()) {
                 if (this._pattern !== 2) {
                     ;
                 } else if (this.checkSizeEnd_Artm()) {
@@ -313,6 +337,7 @@
         if (imageInfo[1]) {
             if (this._mainSprite.bitmap !== bitmap) {
                 this._mainSprite.bitmap = bitmap;
+                this.setupMotionCount_Artm(imageInfo[0]);
             }
             return imageInfo[0];
         }
@@ -320,7 +345,7 @@
     };
 
     Sprite_Actor.prototype.changeMotionResize_Artm = function(type) {
-        const pattern = this._actor.getRegexpPattern_Artm()[1];
+        const pattern = REGEXP_PATTERN[1];
         const regexp = new RegExp(pattern, "g");
         const match = regexp.exec(type);
         if (match) {
@@ -374,6 +399,15 @@
         return Sprite_Actor.MOTIONS[this.motionName_Artm()];
     };
 
+    Sprite_Actor.prototype.motionSpeed_Artm = function() {
+        if (this._motionsArtm.speed) {
+            const times = this._indexArtm * 3;
+            const index = times + this._pattern;
+            return this._motionsArtm.speed[index];
+        }
+        return this.motionSpeed();
+    };
+
     Sprite_Actor.prototype.nextPattern_Artm = function() {
         this._motionsArtm.pattern = this._pattern;
     };
@@ -395,6 +429,12 @@
         const loop = motion.loop;
         this._actor.requestMotion(request)
         this._motionsArtm.count = loop > 0 ? loop : -1;
+        this._motionsArtm.speed = motion.speed;
+    };
+
+    Sprite_Actor.prototype.setupMotionCount_Artm = function(type) {
+        this._indexArtm = MOTIONS.indexOf(type);
+        this._motion = this.motion_Artm();
     };
 
     //-----------------------------------------------------------------------------
