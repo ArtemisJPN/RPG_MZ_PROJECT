@@ -93,7 +93,7 @@
     //-----------------------------------------------------------------------------
     // regexp patterns
     //
-    const REGEXP_PATTERN = [
+    const REGEXP_PATTERNS = [
         "^((?:" + VALUES + ").*,[0-9]+(?:;[0-9]+)*,)+$",
         "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size +
             "([0-9]+)" + DLMTR.image + "(.+)$",
@@ -110,7 +110,7 @@
 
     function _makeParams(obj, params) {
         const result = [];
-        const regexp = new RegExp(REGEXP_PATTERN[0], "g");
+        const regexp = new RegExp(REGEXP_PATTERNS[0], "g");
         if (regexp.test(params + ",")) {
             const args = params.split(",");
             for (let i = 0; i < args.length; i++) {
@@ -122,7 +122,7 @@
     }
 
     function _makeParam(args, index) {
-        const regexp = new RegExp(REGEXP_PATTERN[2], "g");
+        const regexp = new RegExp(REGEXP_PATTERNS[2], "g");
         const match = regexp.exec(args[index + 1]);
         const split = match ? match[0].split(";") : null;
         const loop = split ? split.shift() : args[index + 1];
@@ -345,7 +345,7 @@
     };
 
     Sprite_Actor.prototype.changeMotionResize_Artm = function(type) {
-        const pattern = REGEXP_PATTERN[1];
+        const pattern = REGEXP_PATTERNS[1];
         const regexp = new RegExp(pattern, "g");
         const match = regexp.exec(type);
         if (match) {
