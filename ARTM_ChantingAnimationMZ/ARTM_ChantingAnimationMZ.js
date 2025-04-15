@@ -14,6 +14,7 @@
 // 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
 // 1.5.2 終了フレームの指定に不具合があったため修正
 // 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
+// 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
 // =============================================================================
 /*:ja
  * @target MZ
@@ -107,18 +108,28 @@
         return this._animationQueueArtm.shift();
     };
 
+    Game_Temp.prototype.excludSkill_Artm = function() {
+        const action = BattleManager._action;
+        if (action) {
+            return(
+                (action.isAttack() || action.isGuard()) ?
+                "" : "action"
+            );
+        }
+        return "";
+    };
+
     Game_Temp.prototype.isKeepAnimation_Artm = function() {
         const targetPhase = ["battleEnd", ""];
         if (!KeepAnime) { 
             if (
-                $gameTroop.isEventRunning() ||
-                SceneManager.isSceneChanging()
+                SceneManager.isSceneChanging() ||
+                $gameTroop.isEventRunning()
             ) { return false; }
-            targetPhase.push("action");
+            targetPhase.push(this.excludSkill_Artm());
         }
         return !targetPhase.includes(BattleManager._phase);
     };
-
 
     //-----------------------------------------------------------------------------
     // Game_BattlerBase
@@ -173,7 +184,7 @@
         let regexp, m;
         const item = this._battler.action(0)?._item;
         if (!item?.isSkill()) {
-            this._chantInfoArtm = [-1];
+            this._chantInfoArtm = null;
             return;
         }
         const param = item.object().meta[TAG_NAME];
@@ -189,7 +200,7 @@
 
     Sprite_Battler.prototype.chantInfo_Artm = function() {
         const info = this._chantInfoArtm;
-        return [info[0][0], info[1][0]];
+        return info ? [info[0][0], info[1][0]] : [-1];
     };
 
     Sprite_Battler.prototype.nextChantInfo_Artm = function() {
