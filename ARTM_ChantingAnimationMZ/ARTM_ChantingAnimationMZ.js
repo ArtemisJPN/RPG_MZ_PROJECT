@@ -13,6 +13,7 @@
 // 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
 // 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
 // 1.5.2 終了フレームの指定に不具合があったため修正
+// 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
 // =============================================================================
 /*:ja
  * @target MZ
@@ -31,11 +32,20 @@
  * 対象スキルのメモ欄に値をセットして下さい。
  *
  *【書式】
- * 　<CA_INFO:ID(アニメーションID),ED_FRAME(終了フレーム)>
+ * ・詠唱アニメーションをループ再生する場合
+ * 　<CA_INFO:ID(ID),ED_FRAME(終了フレーム)>
+ * 　　※(ID)にはアニメーションIDを指定します。
+ *
+ * ・フェードIN用アニメーションを1回だけ再生後、
+ * 　詠唱アニメーションをループ再生する場合
+ * 　<CA_INFO:ID(ID);(ID),ED_FRAME(終了フレーム);(終了フレーム)>
  *
  * 　【記載例】
  * 　　ID：0050のアニメーション(120フレーム※)を途切れなくループ再生する場合
  * 　　　<CA_INFO:ID50,ED_FRAME120>
+ *
+ * 　　ID：0010のアニメーション(30フレーム)をフェードINとして表示する場合
+ * 　　　<CA_INFO:ID10;50,ED_FRAME30;120>
  *
  * 　　※開始フレームが0より大きい場合は、
  * 　　　Effekseerツールで生成開始時間を負値にして下さい。
@@ -160,21 +170,34 @@
     };
 
     Sprite_Battler.prototype.updateChantInfo_Artm = function() {
+        let regexp, m;
         const item = this._battler.action(0)?._item;
-        if (item?.isSkill()) {
-            const param = item.object().meta[TAG_NAME];
-            const regexp = /^ID([0-9]+),ED_FRAME([0-9]+)$/g;
-            const match = regexp.exec(param);
-            if (match) {
-                this._chantInfoArtm = [+match[1], ++match[2]];
-                return;
-            }
+        if (!item?.isSkill()) {
+            this._chantInfoArtm = [-1];
+            return;
         }
-        this._chantInfoArtm = [-1];
+        const param = item.object().meta[TAG_NAME];
+        m = (/^ID([0-9]+),ED_FRAME([0-9]+)$/g).exec(param);
+        if (m) {
+            this._chantInfoArtm = [[+m[1]], [++m[2]]];
+        }
+        m = (/^ID([0-9]+);([0-9]+),ED_FRAME([0-9]+);([0-9]+)$/g).exec(param);
+        if (m) {
+            this._chantInfoArtm = [[+m[1] ,+m[2]], [++m[3], ++m[4]]];
+        }
     };
 
     Sprite_Battler.prototype.chantInfo_Artm = function() {
-        return this._chantInfoArtm;
+        const info = this._chantInfoArtm;
+        return [info[0][0], info[1][0]];
+    };
+
+    Sprite_Battler.prototype.nextChantInfo_Artm = function() {
+        if (this._chantInfoArtm[0].length > 1) {
+            this._chantInfoArtm[0].shift();
+            this._chantInfoArtm[1].shift();
+        }
+        return this.chantInfo_Artm();
     };
 
     Sprite_Battler.prototype.updateAnimation_Artm = function() {
@@ -290,7 +313,8 @@
         const sprites = this._animationSpritesArtm;
         if (sprites.filter(s => s.spriteBase() === spriteBase).length < 2)
         {
-            this._queueArtm.push([spriteBase, sprite._animation.id]);
+            const animationId = spriteBase.nextChantInfo_Artm()[0];
+            this._queueArtm.push([spriteBase, animationId]);
         }
     };
 
