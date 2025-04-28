@@ -15,6 +15,7 @@
 // 1.5.2 終了フレームの指定に不具合があったため修正
 // 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
 // 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
+// 1.6.2 詠唱アニメーションのレイヤーを対象者の背面になるように変更
 // =============================================================================
 /*:ja
  * @target MZ
@@ -307,6 +308,9 @@
         spriteAnimation._animation.displayType = -1;
         targets[0].initAnimationPitch_Artm(spriteAnimation._animation.speed);
         this._effectsContainer.addChild(spriteAnimation);
+        this._effectsContainer.children.unshift(
+            this._effectsContainer.children.pop()
+        );
         this._animationSpritesArtm.push(spriteAnimation);
     };
 
