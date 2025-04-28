@@ -301,7 +301,6 @@
     ) {
         const spriteAnimation = new Sprite_Animation_Artm(sprite);
         const targetSprites = this.makeTargetSprites(targets);
-        const baseDelay = this.animationBaseDelay();
         if (this.animationShouldMirror(targets[0])) { mirror = !mirror; }
         spriteAnimation.targetObjects = targets;
         spriteAnimation.setup(targetSprites, animation, mirror, 0, null);
