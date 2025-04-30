@@ -15,56 +15,60 @@
 // 1.5.2 終了フレームの指定に不具合があったため修正
 // 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
 // 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
-// 1.6.2 詠唱アニメーションのレイヤーを対象者の背面になるように変更
+// 1.6.3 詠唱アニメーションのレイヤー設定オプション(前面/背面)を追加
 // =============================================================================
 /*:ja
  * @target MZ
- * @plugindesc 指定IDのアニメーションを詠唱者に表示するMZ専用プラグイン
+ * @plugindesc 指定IDのアニメーションを詠唱者にループ表示するMZ専用プラグイン
  * @author Artemis
  *
  * @help ARTM_ChantingAnimationMZ.js
- * アクターやエネミーがスキル詠唱中、
- * その詠唱者に指定IDのアニメーションを表示し続けるMZ専用プラグインです。
+ * アクターやエネミーのスキル詠唱中に、
+ * 詠唱者へ指定IDのアニメーションをループ表示するMZ専用プラグインです。
  *
  *--------------
  * ご使用方法
  *--------------
  *
  * ■メモ欄の設定について
- * 対象スキルのメモ欄に値をセットして下さい。
+ * 　対象スキルのメモ欄に値をセットして下さい。
  *
  *【書式】
- * ・詠唱アニメーションをループ再生する場合
- * 　<CA_INFO:ID(ID),ED_FRAME(終了フレーム)>
- * 　　※(ID)にはアニメーションIDを指定します。
- *
- * ・フェードIN用アニメーションを1回だけ再生後、
  * 　詠唱アニメーションをループ再生する場合
- * 　<CA_INFO:ID(ID);(ID),ED_FRAME(終了フレーム);(終了フレーム)>
+ * 　　<CA_INFO:ID(ID),ED_FRAME(終了フレーム),(レイヤー)>
+ * 　　・(ID)にはアニメーションIDを指定します。
+ * 　　・(レイヤー)には前面表示："f"or"F"、背面表示："b"or"B"を指定します。
  *
- * 　【記載例】
- * 　　ID：0050のアニメーション(120フレーム※)を途切れなくループ再生する場合
- * 　　　<CA_INFO:ID50,ED_FRAME120>
+ * 　フェードイン入りの詠唱アニメーションをループ再生する場合
+ * 　　<CA_INFO:ID(ID);(ID),ED_FRAME(終了フレーム);(終了フレーム),(レイヤー)>
+ * 　　・(ID)にはアニメーションIDを指定します。
+ * 　　・(レイヤー)には前面表示："f"or"F"、背面表示："b"or"B"を指定します。
  *
- * 　　ID：0010のアニメーション(30フレーム)をフェードINとして表示する場合
- * 　　　<CA_INFO:ID10;50,ED_FRAME30;120>
+ * 【記載例】
+ * 　ID：0050のアニメーション(120フレーム※)を前面表示でループ再生する場合
+ * 　　<CA_INFO:ID50,ED_FRAME120,f>
  *
- * 　　※開始フレームが0より大きい場合は、
- * 　　　Effekseerツールで生成開始時間を負値にして下さい。
- * 　　　例として、開始フレーム2/終了フレーム120 の場合は、
- * 　　　生成開始時間に-2を設定してアニメーションを再保存して下さい。
+ * 　ID：0010のアニメーション(30フレーム)をフェードイン用(1回)として、
+ * 　ID：0050のアニメーション(120フレーム※)をループ用として、
+ * 　それぞれ背面表示で再生する場合
+ * 　　<CA_INFO:ID10;50,ED_FRAME30;120,b>
+ *
+ * 　開始フレームが0より大きい場合は、
+ * 　Effekseerツールで生成開始時間を負値にして下さい。
+ * 　例として、開始フレーム2/終了フレーム120 の場合は、
+ * 　生成開始時間に-2を設定してアニメーションを再保存して下さい。
  * 
- * 　　　上記を実施してもループ間がぶつ切りする場合は、
- * 　　　ED_FRAMEの値を調整して下さい。
+ * 　上記を実施してもループ間がぶつ切りする場合は、
+ * 　ED_FRAMEの値を調整して下さい。
  * 
  * ■プラグインパラメータについて
- * 詠唱アニメーション継続設定
- *    ON:中断シーンでも詠唱アニメーションを継続します。
- *   OFF:中断シーンでは詠唱アニメーションを中断します。
- * 　（中断シーンとは、イベント発生中や攻撃中を指します。）
+ * 　詠唱アニメーション継続設定
+ * 　   ON:中断シーン※でも詠唱アニメーションを継続します。
+ * 　  OFF:中断シーン※では詠唱アニメーションを中断します。
+ *
+ * 　　※中断シーンとは、イベント発生中や攻撃中を指します。
  *
  * プラグインコマンドはありません。
- *
  * @param keepAnime
  * @text 詠唱アニメ継続設定
  * @desc 中断シーンでのアニメーション継続/中断を設定します。
@@ -189,19 +193,19 @@
             return;
         }
         const param = item.object().meta[TAG_NAME];
-        m = (/^ID([0-9]+),ED_FRAME([0-9]+)$/g).exec(param);
+        m = (/^ID([0-9]+),ED_FRAME([0-9]+),(?:(f|F|b|B))$/g).exec(param);
         if (m) {
-            this._chantInfoArtm = [[+m[1]], [++m[2]]];
+            this._chantInfoArtm = [[+m[1]], [++m[2]], m[3].toLowerCase()];
         }
-        m = (/^ID([0-9]+);([0-9]+),ED_FRAME([0-9]+);([0-9]+)$/g).exec(param);
+        m = (/^ID([0-9]+);([0-9]+),ED_FRAME([0-9]+);([0-9]+),(?:(f|F|b|B))$/g).exec(param);
         if (m) {
-            this._chantInfoArtm = [[+m[1] ,+m[2]], [++m[3], ++m[4]]];
+            this._chantInfoArtm = [[+m[1] ,+m[2]], [++m[3], ++m[4]], m[5].toLowerCase()];
         }
     };
 
     Sprite_Battler.prototype.chantInfo_Artm = function() {
         const info = this._chantInfoArtm;
-        return info ? [info[0][0], info[1][0]] : [-1];
+        return info ? [info[0][0], info[1][0], info[2]] : [-1];
     };
 
     Sprite_Battler.prototype.nextChantInfo_Artm = function() {
@@ -308,9 +312,11 @@
         spriteAnimation._animation.displayType = -1;
         targets[0].initAnimationPitch_Artm(spriteAnimation._animation.speed);
         this._effectsContainer.addChild(spriteAnimation);
-        this._effectsContainer.children.unshift(
-            this._effectsContainer.children.pop()
-        );
+        if (sprite.chantInfo_Artm()[2] === "b") {
+            this._effectsContainer.children.unshift(
+                this._effectsContainer.children.pop()
+            );
+        }
         this._animationSpritesArtm.push(spriteAnimation);
     };
 
