@@ -16,6 +16,7 @@
 // 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
 // 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
 // 1.6.3 詠唱アニメーションのレイヤー設定オプション(前面/背面)を追加
+// 1.6.4 詠唱中に沈黙状態となったとき、詠唱アニメーションが表示される不具合を修正
 // =============================================================================
 /*:ja
  * @target MZ
@@ -157,6 +158,9 @@
 
     Game_BattlerBase.prototype.endAnimation_Artm = function() {
         this._animationPlayingArtm = false;
+        if (this._tpbState !== "casting") {
+            this._idSaveArtm = undefined;
+        }
     };
 
     Game_BattlerBase.prototype.initAnimationPitch_Artm = function(speed) {
@@ -178,8 +182,11 @@
     };
 
     Sprite_Battler.prototype.canChantAnime_Artm = function() {
+        const battler = this._battler;
+        const item = battler._itemSaveArtm;
         return (
-            this._battler._tpbState === "casting" &&
+            !(item ? battler.isSkillTypeSealed(item.stypeId) : false) &&
+            battler._tpbState === "casting" &&
             this._tpbStatePrevArtm !== "casting" &&
             $gameTemp.isKeepAnimation_Artm()
         );
@@ -298,6 +305,7 @@
         const animation = $dataAnimations[request.animationId];
         const targets = request.targets;
         const mirror = request.mirror;
+        targets[0]._itemSaveArtm = targets[0]._actions[0].item();
         this.createAnimationSprite_Artm(sprite, targets, animation, mirror);
     };
 
