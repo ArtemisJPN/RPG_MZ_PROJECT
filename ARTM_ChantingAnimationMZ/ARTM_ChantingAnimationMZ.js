@@ -125,7 +125,7 @@
         return "";
     };
 
-    Game_Temp.prototype.isKeepAnimation_Artm = function() {
+    Game_Temp.prototype.isKeepAnimation_Artm = function(battler) {
         const targetPhase = ["battleEnd", ""];
         if (!KeepAnime) { 
             if (
@@ -133,6 +133,9 @@
                 $gameTroop.isEventRunning()
             ) { return false; }
             targetPhase.push(this.excludSkill_Artm());
+        }
+        if (battler._tpbState !== "casting") {
+            return false;
         }
         return !targetPhase.includes(BattleManager._phase);
     };
@@ -146,6 +149,7 @@
         this._animationPlayingArtm = false;
         this._animationCountArtm = 0;
         this._animationPitchArtm = 0;
+        this._tpbStatePrevArtm = null;
     };
 
     Game_BattlerBase.prototype.animationPlaying_Artm = function() {
@@ -158,8 +162,11 @@
 
     Game_BattlerBase.prototype.endAnimation_Artm = function() {
         this._animationPlayingArtm = false;
-        if (this._tpbState !== "casting") {
-            this._idSaveArtm = undefined;
+        if (
+            this._tpbState !== "casting" &&
+            (this.itemSaveArtm ?? [0])[0] === null
+        ) {
+            this.itemSaveArtm = undefined;
         }
     };
 
@@ -172,23 +179,50 @@
     };
 
     //-----------------------------------------------------------------------------
+    // Game_Battler
+    //
+    const _Game_Battler_addState = Game_Battler.prototype.addState;
+    Game_Battler.prototype.addState = function(stateId) {
+        _Game_Battler_addState.call(this, stateId);
+        const item = this.itemSaveArtm ?? [null, null];
+        if (item[0] && this.isSkillTypeSealed(item[0].stypeId)) {
+            this.itemSaveArtm[1] = true;
+        }
+    };
+
+    const _Game_Battler_removeState = Game_Battler.prototype.removeState;
+    Game_Battler.prototype.removeState = function(stateId) {
+        _Game_Battler_removeState.call(this, stateId);
+        const item = this.itemSaveArtm ?? [null, null];
+        if (item[0] && !this.isSkillTypeSealed(item[0].stypeId)) {
+            this.itemSaveArtm = [null, false];
+        }
+        this.updateTpbStetePre_Artm(true);
+    };
+
+    Game_Battler.prototype.updateTpbStetePre_Artm = function(flag) {
+        if (flag) {
+            this._tpbStatePrevArtm = "waiting";
+        }
+    };
+
+    //-----------------------------------------------------------------------------
     // Sprite_Battler
     //
     const _Sprite_Battler_initMembers = Sprite_Battler.prototype.initMembers;
     Sprite_Battler.prototype.initMembers = function() {
         _Sprite_Battler_initMembers.call(this);
         this._chantInfoArtm = null;
-        this._tpbStatePrevArtm = "";
     };
 
     Sprite_Battler.prototype.canChantAnime_Artm = function() {
         const battler = this._battler;
-        const item = battler._itemSaveArtm;
+        const item = battler.itemSaveArtm;
         return (
-            !(item ? battler.isSkillTypeSealed(item.stypeId) : false) &&
+            !(item && item[1]) &&
             battler._tpbState === "casting" &&
-            this._tpbStatePrevArtm !== "casting" &&
-            $gameTemp.isKeepAnimation_Artm()
+            battler._tpbStatePrevArtm !== "casting" &&
+            $gameTemp.isKeepAnimation_Artm(battler)
         );
     };
 
@@ -228,8 +262,8 @@
             this.updateChantInfo_Artm();
             this.requestAnimation_Artm();
         }
-        if ($gameTemp.isKeepAnimation_Artm()) {
-            this._tpbStatePrevArtm = this._battler._tpbState;
+        if ($gameTemp.isKeepAnimation_Artm(this._battler)) {
+            this._battler._tpbStatePrevArtm = this._battler._tpbState;
         }
     };
 
@@ -244,12 +278,6 @@
             if (speed < 0 && !battler.animationPlaying_Artm()) {
                 $gameTemp.requestAnimation_Artm(this, animationId);
             }
-        }
-    };
-
-    Sprite_Battler.prototype.updateTpbStetePre_Artm = function(flag) {
-        if (flag) {
-            this._tpbStatePrevArtm = "waiting";
         }
     };
 
@@ -305,7 +333,7 @@
         const animation = $dataAnimations[request.animationId];
         const targets = request.targets;
         const mirror = request.mirror;
-        targets[0]._itemSaveArtm = targets[0]._actions[0].item();
+        targets[0].itemSaveArtm = [targets[0]._actions[0].item(), false];
         this.createAnimationSprite_Artm(sprite, targets, animation, mirror);
     };
 
@@ -348,24 +376,26 @@
 
     Spriteset_Battle.prototype.checkEnd_Artm = function(sprite) {
         const spriteBase = sprite.spriteBase();
+        const battler = spriteBase._battler;
         const endFrameIndex = spriteBase.chantInfo_Artm()[1];
         const flags = [
             !sprite.isPlaying(), false,
             sprite._frameIndex === endFrameIndex,
-            spriteBase._battler._tpbState === "casting",
+            battler._tpbState === "casting",
             endFrameIndex === -1,
+            battler.itemSaveArtm ? battler.itemSaveArtm[1] : false
         ];
-        if (!$gameTemp.isKeepAnimation_Artm()) {
-            spriteBase.updateTpbStetePre_Artm(flags[3]);
-            flags[1] = true;
+        if (!flags[5] && !$gameTemp.isKeepAnimation_Artm(battler)) {
+            flags[5] = flags[1] = true;
         }
+        battler.updateTpbStetePre_Artm(!flags[3] || flags[5]);
         return flags;
     };
 
     Spriteset_Battle.prototype.updateAnimations_Artm = function() {
         for (const sprite of this._animationSpritesArtm) {
             const flags = this.checkEnd_Artm(sprite);
-            if (flags[0] || flags[1]) {
+            if (flags[0] || flags[1] || flags[5]) {
                 this.removeAnimation_Artm(sprite);
                 if (flags[3] && flags[4]) {
                     this.insertQueue_Artm(sprite);
