@@ -14,6 +14,7 @@
 // 1.1.3 探索範囲セットアップ時の冗長処理を修正
 //       過去の改修箇所に一部コメントを追加
 // 1.1.4 ver1.1.2を斜め移動にも対応
+// 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -2876,6 +2877,7 @@
         sprite.anchor.x = 0;
         sprite.anchor.y = 0;      
         sprite.visible = true;
+        sprite.z = DefRangePosition[0] === 1 ? 6 : 2;
         bsprite._spriteSide = sprite;
         spriteset._tilemap.addChild(sprite);
     }
