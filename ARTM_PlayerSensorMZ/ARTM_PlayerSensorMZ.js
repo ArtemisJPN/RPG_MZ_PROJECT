@@ -2830,12 +2830,13 @@
         $gameMap.events().forEach(event => {
             if (event._sensorType) {
                 this._viewRangeSprites.push(new Sprite_ViewRange(event));
-                addSideSprite(this);
                 event.enableCreateRange();
             }
         }, this);
         for (let i = 0; i < this._viewRangeSprites.length; i++) {
-            this._tilemap.addChild(this._viewRangeSprites[i]);
+            const sprite = this._viewRangeSprites[i];
+            this._tilemap.addChild(sprite);
+            this._tilemap.addChild(sprite.spriteSide());
         }
     };
 
@@ -2854,28 +2855,14 @@
             if (event._sensorType) {
                 const sprite = new Sprite_ViewRange(event);
                 this._viewRangeSprites.push(sprite);
-                addSideSprite(this);
                 event.enableCreateRange();
                 // ver1.1.3：二重ループ処理を削除し本ループで処理するように修正
                 this._tilemap.addChild(sprite);
+                this._tilemap.addChild(sprite.spriteSide());
             }
         }, this);
     };
 
-    function addSideSprite(spriteset) {
-        const viewRangeSprites = spriteset._viewRangeSprites;
-        const bsprite = viewRangeSprites[viewRangeSprites.length - 1];
-        const sprite = new Sprite();
-        const opacity = DefRangeOpacity[0];
-        sprite.opacity = opacity;
-        sprite.blendMode = PIXI.BLEND_MODES.ADD;
-        sprite.anchor.x = 0;
-        sprite.anchor.y = 0;      
-        sprite.visible = true;
-        sprite.z = DefRangePosition[0] === 1 ? 6 : 2;
-        bsprite._spriteSide = sprite;
-        spriteset._tilemap.addChild(sprite);
-    }
     //=========================================================================
     // Sprite_ViewRange
     //  探索者の視界範囲を表す図形を描画させる処理を定義します。
@@ -2893,11 +2880,25 @@
         this.setCharacter(character);
         this._frameCount = 0;
         this.z = DefRangePosition[0] === 1 ? 6 : 2;
+        this.setSpriteSide();
     };
 
     Sprite_ViewRange.prototype.initMembers = function() {
         this._character = null;
         this._coordinates = null;
+        this._spriteSide = null;
+    };
+
+    Sprite_ViewRange.prototype.setSpriteSide = function() {
+        const sprite = new Sprite();
+        const opacity = DefRangeOpacity[0];
+        sprite.opacity = opacity;
+        sprite.blendMode = PIXI.BLEND_MODES.ADD;
+        sprite.anchor.x = 0;
+        sprite.anchor.y = 0;      
+        sprite.visible = true;
+        sprite.z = DefRangePosition[0] === 1 ? 6 : 2;
+        this._spriteSide = sprite;
     };
 
     Sprite_ViewRange.prototype.setCharacter = function(character) {
@@ -3160,49 +3161,49 @@
         const tileHeight = $gameMap.tileHeight();
         const cx = this._character.screenX();
         const cy = this._character.screenY();
-        const posSide = calcPositionSide(this);
+        const sidePos = this.calcPositionSide();
         const bias = 6; // 位置微調整
         this.x = cx;
         this.y = cy;
-        this._spriteSide.x = posSide.x;
-        this._spriteSide.y = posSide.y;
+        this._spriteSide.x = sidePos.x;
+        this._spriteSide.y = sidePos.y;
         switch(sensorType) {
             case "l":
                 if (direction === DIR_UP) {
                     this.y = cy + bias;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_RIGHT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSide.x = posSide.x;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.x = sidePos.x;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_LEFT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSide.x = posSide.x;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.x = sidePos.x;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_DOWN) {
                     this.y = cy + bias;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.y = sidePos.y + bias;
                 }
                 break;
             case "f":
                 if (direction === DIR_UP) {
                     this.y = cy + bias;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_RIGHT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSide.x = posSide.x;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.x = sidePos.x;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_LEFT) {
                     this.x = cx;
                     this.y = cy + bias;
-                    this._spriteSide.x = posSide.x;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.x = sidePos.x;
+                    this._spriteSide.y = sidePos.y + bias;
                 } else if (direction === DIR_DOWN) {
                     this.y = cy + bias;
-                    this._spriteSide.y = posSide.y + bias;
+                    this._spriteSide.y = sidePos.y + bias;
                 }
                 break;
             case "df":
@@ -3221,16 +3222,20 @@
         }
     };
 
-    function calcPositionSide(bsprite) {
+    Sprite_ViewRange.prototype.calcPositionSide = function() {
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
-        const event = bsprite._character;
+        const event = this._character;
         const _sx = event.screenX();
         const _sy = event.screenY();
         const sx = _sx - tileWidth * 1.5;
         const sy = _sy - tileHeight * 2;
-        return {"x":sx, "y":sy};
-    }
+        return {"x": sx, "y": sy};
+    };
+
+    Sprite_ViewRange.prototype.spriteSide = function() {
+        return this._spriteSide;
+    };
 
     //=========================================================================
     // Bitmap
