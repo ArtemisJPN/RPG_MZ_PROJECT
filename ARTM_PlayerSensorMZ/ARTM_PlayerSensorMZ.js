@@ -14,6 +14,7 @@
 // 1.1.3 探索範囲セットアップ時の冗長処理を修正
 //       過去の改修箇所に一部コメントを追加
 // 1.1.4 ver1.1.2を斜め移動にも対応
+// 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -2185,7 +2186,6 @@
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
         // currentRange初期化
-        const sensorRangeC = sensorRange;
         let strDir, diagoDir, coordinates, cnt;
         // coordinate初期化
         this.clearCoordinate();
@@ -2309,8 +2309,6 @@
         const dir = dirFixed === -1 ? this.direction() : dirFixed;
         const px = $gamePlayer._realX;
         const py = $gamePlayer._realY;
-        const sx = this.deltaXFrom($gamePlayer.x);
-        const sy = this.deltaYFrom($gamePlayer.y);
         const ex = this.x;
         const ey = this.y;
         const rex = this._realX;
@@ -2832,7 +2830,7 @@
         $gameMap.events().forEach(event => {
             if (event._sensorType) {
                 this._viewRangeSprites.push(new Sprite_ViewRange(event));
-                addSideSprite(this, event);
+                addSideSprite(this);
                 event.enableCreateRange();
             }
         }, this);
@@ -2856,7 +2854,7 @@
             if (event._sensorType) {
                 const sprite = new Sprite_ViewRange(event);
                 this._viewRangeSprites.push(sprite);
-                addSideSprite(this, event);
+                addSideSprite(this);
                 event.enableCreateRange();
                 // ver1.1.3：二重ループ処理を削除し本ループで処理するように修正
                 this._tilemap.addChild(sprite);
@@ -2864,18 +2862,17 @@
         }, this);
     };
 
-    function addSideSprite(spriteset, event) {
+    function addSideSprite(spriteset) {
         const viewRangeSprites = spriteset._viewRangeSprites;
         const bsprite = viewRangeSprites[viewRangeSprites.length - 1];
         const sprite = new Sprite();
-        const tileWidth = $gameMap.tileWidth();
-        const tileHeight = $gameMap.tileHeight();
         const opacity = DefRangeOpacity[0];
         sprite.opacity = opacity;
         sprite.blendMode = PIXI.BLEND_MODES.ADD;
         sprite.anchor.x = 0;
         sprite.anchor.y = 0;      
         sprite.visible = true;
+        sprite.z = DefRangePosition[0] === 1 ? 6 : 2;
         bsprite._spriteSide = sprite;
         spriteset._tilemap.addChild(sprite);
     }
@@ -2952,13 +2949,10 @@
         const dirFixed = this._character.getDirectionFixed();
         const direction = dirFixed === -1 ? _direction : dirFixed;
         const bothSensor = CEC(DefBothSensor);
-        const coordinates = this._coordinate;
         const sensorType = this._character.getSensorType();
         const sensorRange = this._character.getSensorRange();
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
-        const sideSensorR = this._character.getBothSensorRight();
-        const sideSensorL = this._character.getBothSensorLeft();
         const color = DefRangeColor[0];
         const opacity = DefRangeOpacity[0];
         const bias =
@@ -3016,12 +3010,8 @@
                     this.anchor.y = 0;
                 }
                 this.bitmap = new Bitmap(width, height);
-                if (sensorType === "f") {
-                    this._spriteSide.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
-                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
-                } else {
-                    this.bitmap.fillViewRangeFrontDiamond(color, this._character);
-                }
+                this._spriteSide.bitmap = new Bitmap(tileWidth * 3, tileHeight * 3);
+                this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
                 break;
             case "d":
                 width = tileWidth * sensorRange * 2 + tileWidth;
@@ -3130,12 +3120,8 @@
                     this.bitmap.clear();
                     this.bitmap = new Bitmap(width, height);
                 }
-                if (sensorType === "f") {
-                    this._spriteSide.bitmap.clear();
-                    this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
-                } else {
-                    this.bitmap.fillViewRangeFrontDiamond(color, this._character);
-                }
+                this._spriteSide.bitmap.clear();
+                this.bitmap.fillViewRangeFan(color, this._character, this._spriteSide);
                 break;
             case "d":
                 width = tileWidth * sensorRange * 2 + tileWidth;
@@ -3239,11 +3225,8 @@
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
         const event = bsprite._character;
-        const _cx = event._x;
-        const _cy = event._y;
         const _sx = event.screenX();
         const _sy = event.screenY();
-        const offsetY = tileHeight - _sy / (_cy + 1);
         const sx = _sx - tileWidth * 1.5;
         const sy = _sy - tileHeight * 2;
         return {"x":sx, "y":sy};
@@ -3455,12 +3438,11 @@
     Bitmap.prototype.fillViewRangeDiamond = function(color, character) {
         const context = this._context;
         const width = this.width;
-        const height = this.height;
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
         coordinates = character.getCoordinate();
         const cnt = coordinates.length;
-        let rx, ry, dx, dy, ndx, ndy, sign;
+        let rx, ry, dx, dy, ndx, ndy;
         this.clear();
         context.save();
         context.fillStyle = color;
@@ -3541,10 +3523,6 @@
     };
 
     Bitmap.prototype.artmDrawLine = function(context, cx, cy, distanceX, distanceY) {
-        const width = this.width;
-        const height = this.height;
-        const tileWidth = $gameMap.tileWidth();
-        const tileHeight = $gameMap.tileHeight();
         const lx = distanceX;
         const ly = distanceY;
         context.moveTo(cx, cy);
@@ -3555,8 +3533,6 @@
 
     Bitmap.prototype.artmSideDrawLine = function(context, sideSensors) {
         const color = DefRangeColor[0];
-        const width = this.width;
-        const height = this.height;
         const tw = $gameMap.tileWidth();
         const th = $gameMap.tileHeight();
         const d = sideSensors[2];
