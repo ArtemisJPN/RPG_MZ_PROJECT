@@ -3264,8 +3264,8 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = cy - Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 8]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 8]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_RIGHT) {
             if (coordinates && cnt === 1) {
@@ -3274,8 +3274,8 @@
                 cy = height;
                 distanceX = cx + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 6]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 6]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_LEFT) {
             if (coordinates && cnt === 1) {
@@ -3284,8 +3284,8 @@
                 cy = height - tileHeight;
                 distanceX = cx - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy + tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 4]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 4]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
             }
         } else if (direction === DIR_DOWN) {
             if (coordinates && cnt === 1) {
@@ -3294,8 +3294,8 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = cy + Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 2]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 2]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
             }
         }
         context.fill();
@@ -3329,8 +3329,8 @@
                 cy = height - tileHeight;
                 distanceX = cx - tileWidth;
                 distanceY = height - tileHeight - Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 8]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 8]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3345,7 +3345,7 @@
                     cy = height - tileHeight * i;
                     distanceX = cx + tileWidth * signChange(sign);
                     distanceY = height - tileHeight - Math.abs(coordinates[j][num]) * tileHeight;
-                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_RIGHT) {
@@ -3356,8 +3356,8 @@
                 cy = height / 2;
                 distanceX = tileWidth / 2 + Math.abs(coordinates[0][num]) * tileWidth;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 6]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 6]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3373,7 +3373,7 @@
                     cy -= tileHeight / 2;
                     distanceX = tileWidth / 2 + Math.abs(coordinates[j][num]) * tileWidth ;
                     distanceY = cy + tileHeight * signChange(sign);
-                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_LEFT) {
@@ -3385,8 +3385,8 @@
                 distanceX = width - Math.abs(coordinates[0][num]) * tileWidth;
                 distanceX -= tileWidth/ 2;
                 distanceY = cy - tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 4]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 4]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3402,7 +3402,7 @@
                     cy -= tileHeight / 2;
                     distanceX = width - tileWidth / 2 - Math.abs(coordinates[j][num]) * tileWidth;
                     distanceY = cy + tileHeight * signChange(sign);
-                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 }
             }
         } else if (direction === DIR_DOWN) {
@@ -3413,8 +3413,8 @@
                 cy = 0;
                 distanceX = cx + tileWidth;
                 distanceY = Math.abs(coordinates[0][num]) * tileHeight;
-                this.artmSideDrawLine(contextSide, [sideSensorL, sideSensorR, 2]);
-                this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 2]);
+                this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 for (let i = 1, j = 2; j < cnt; i++, j++) {
                     if (coordinates[j][2] === "Add") {
                         continue;
@@ -3429,7 +3429,7 @@
                     cy = tileHeight * i - tileHeight;
                     distanceX = cx + tileWidth * signChange(sign);
                     distanceY = Math.abs(coordinates[j][num]) * tileHeight;
-                    this.artmDrawLine(context, cx, cy, distanceX, distanceY);
+                    this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
                 }
             }
         }
@@ -3524,7 +3524,7 @@
         context.restore();
     };
 
-    Bitmap.prototype.artmDrawLine = function(context, cx, cy, distanceX, distanceY) {
+    Bitmap.prototype.drawLine_Artm = function(context, cx, cy, distanceX, distanceY) {
         const lx = distanceX;
         const ly = distanceY;
         context.moveTo(cx, cy);
@@ -3533,7 +3533,7 @@
         context.lineTo(cx, ly);
     };
 
-    Bitmap.prototype.artmSideDrawLine = function(context, sideSensors) {
+    Bitmap.prototype.drawLineSide_Artm = function(context, sideSensors) {
         const color = DefRangeColor[0];
         const tw = $gameMap.tileWidth();
         const th = $gameMap.tileHeight();
@@ -3543,16 +3543,16 @@
         context.fillStyle = color;
         context.beginPath();
         if (sideSensors[0]) {
-            sideDrawLine(context, d, tw, th)
+            this.drawLineSideMain_Artm(context, d, tw, th)
         }
         if (sideSensors[1]) {
-            sideDrawLine(context, 10 - d, tw, th)
+            this.drawLineSideMain_Artm(context, 10 - d, tw, th)
         }
         context.fill();
         context.restore();
     };
-    
-    function sideDrawLine(context, d, tw, th) {
+
+    Bitmap.prototype.drawLineSideMain_Artm = function(context, d, tw, th) {
         const dirTable = {8:[0, th], 6:[tw, 0], 4:[tw, th * 2], 2:[tw * 2, th]};
         if (dirTable[d]) {
             const x1 = dirTable[d][0];
@@ -3565,7 +3565,7 @@
             context.lineTo(x1, y2);
             context.lineTo(x1, y1);
         }
-    }
+    };
 
     //=========================================================================
     // ユーティリティ
