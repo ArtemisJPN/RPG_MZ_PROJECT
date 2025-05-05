@@ -2158,7 +2158,7 @@
             case "l": // 直線の探索
                 return this.sensorLine();
             case "f": // 扇範囲の探索
-                // ver1.1.4：プレイヤーリアル座標をイベントキーに紐づけて保持する
+                // ver1.1.4：プレイヤー座標をイベントキーに紐づけて保持する
                 if (IsRealUnder0_5) {
                     const ret = this.sensorFan();
                     $gameTemp.hldPlayerPos_Artm(this.eventId());
@@ -2661,11 +2661,10 @@
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
         let pos = [$gamePlayer._realX, $gamePlayer._realY];
-        // ver1.1.4：移動先を対象とした探索判定を行う
+        // ver1.1.4：プレイヤーの予測判定を行う
         if (IsRealUnder0_5) {
-            const posOld = $gameTemp.playerPos_Artm(this.eventId(), 0);
-            const posKey = "" + Math.sign(pos[0] - posOld[0]) + Math.sign(pos[1] - posOld[1]);
-            const destPos = this.testPlayerDestinationSide_Artm(posKey, pos);
+            const prevPos = $gameTemp.playerPos_Artm(this.eventId(), 0);
+            const destPos = this.testPlayerDestinationSide_Artm(pos, prevPos);
             pos = this.isSensorFound() ? destPos : pos;
         }
         const sx = flrDec(this.deltaXFrom(pos[0]));
@@ -2710,18 +2709,19 @@
     };
 
     // ver1.1.4：プレイヤーの予測判定を行う(隣接マス探索用）
-    Game_Event.prototype.testPlayerDestinationSide_Artm = function(key, pos) {
-        const realPos = [DefRealRangeX[0], DefRealRangeY[0]];
+    Game_Event.prototype.testPlayerDestinationSide_Artm = function(p1, p2) {
+        const real = [DefRealRangeX[0], DefRealRangeY[0]];
+        const key = "" + Math.sign(p1[0] - p2[0]) + Math.sign(p1[1] - p2[1]);
         return {
-            "-1-1":[Math.floor(pos[0]) + realPos[0], Math.floor(pos[1]) + realPos[1]],
-            "0-1" :[pos[0], Math.floor(pos[1]) + realPos[1]],
-            "1-1" :[Math.ceil(pos[0]) - realPos[0], Math.floor(pos[1]) + realPos[1]],
-            "10"  :[Math.ceil(pos[0]) - realPos[0], pos[1]],
-            "11"  :[Math.ceil(pos[0]) - realPos[0], Math.ceil(pos[1]) - realPos[1]],
-            "01"  :[pos[0], Math.ceil(pos[1]) - realPos[1]],
-            "-11" :[Math.floor(pos[0]) + realPos[0], Math.ceil(pos[1]) - realPos[1]],
-            "-10" :[Math.floor(pos[0]) + realPos[0], pos[1]]
-        }[key] ?? pos;
+            "-1-1":[Math.floor(p1[0]) + real[0], Math.floor(p1[1]) + real[1]],
+            "0-1" :[p1[0], Math.floor(p1[1]) + real[1]],
+            "1-1" :[Math.ceil(p1[0]) - real[0], Math.floor(p1[1]) + real[1]],
+            "10"  :[Math.ceil(p1[0]) - real[0], p1[1]],
+            "11"  :[Math.ceil(p1[0]) - real[0], Math.ceil(p1[1]) - real[1]],
+            "01"  :[p1[0], Math.ceil(p1[1]) - real[1]],
+            "-11" :[Math.floor(p1[0]) + real[0], Math.ceil(p1[1]) - real[1]],
+            "-10" :[Math.floor(p1[0]) + real[0], p1[1]]
+        }[key] ?? p1;
     };
 
     Game_Event.prototype.rangeSearch = function(strDir, rx, ry, signX, signY, noPass) {
