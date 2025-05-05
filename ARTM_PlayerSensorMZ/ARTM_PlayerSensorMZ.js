@@ -2891,8 +2891,7 @@
 
     Sprite_ViewRange.prototype.setSpriteSide = function() {
         const sprite = new Sprite();
-        const opacity = DefRangeOpacity[0];
-        sprite.opacity = opacity;
+        sprite.opacity = DefRangeOpacity[0];
         sprite.blendMode = PIXI.BLEND_MODES.ADD;
         sprite.anchor.x = 0;
         sprite.anchor.y = 0;      
@@ -3226,10 +3225,8 @@
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
         const event = this._character;
-        const _sx = event.screenX();
-        const _sy = event.screenY();
-        const sx = _sx - tileWidth * 1.5;
-        const sy = _sy - tileHeight * 2;
+        const sx = event.screenX() - tileWidth * 1.5;
+        const sy = event.screenY() - tileHeight * 2;
         return {"x": sx, "y": sy};
     };
 
