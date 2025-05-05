@@ -2289,19 +2289,6 @@
         return false;
     };
 
-    // 扇範囲の探索用の予測判定処理
-    // ver1.1.4：移動先を対象とした探索判定を行う
-    Game_Event.prototype.testPlayerDestFan_Artm = function(formula, pos, isReverse) {
-        const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
-        const sign = [pos[0] - prevPos[0], pos[1] - prevPos[1]];
-        pos[0] = sign[0] < 0 ? Math.floor(pos[0]) : (sign[0] > 0 ? Math.ceil(pos[0]) : pos[0]);
-        pos[1] = sign[1] < 0 ? Math.floor(pos[1]) : (sign[1] > 0 ? Math.ceil(pos[1]) : pos[1]);
-        return (
-            (pos[0] >= formula[0]) && (pos[0] <= formula[0]) &&
-            (pos[1] >= formula[1]) && (pos[1] <= formula[2])
-        );
-    }
-
     // 扇範囲の探索
     Game_Event.prototype.sensorFan = function() {
         const sensorRange = this.getSensorRange();
@@ -2388,7 +2375,7 @@
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
-                        if (this.testPlayerDestFan_Artm(formula, [px, py], 0)) {
+                        if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
                     }
@@ -2460,7 +2447,7 @@
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
-                        if (this.testPlayerDestFan_Artm(formula, [py, px], 1)) {
+                        if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
                     }
@@ -2532,7 +2519,7 @@
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
-                        if (this.testPlayerDestFan_Artm(formula, [py, px], 1)) {
+                        if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
                     }
@@ -2604,7 +2591,7 @@
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
                         // ver1.1.4：プレイヤーの予測判定を行う
-                        if (this.testPlayerDestFan_Artm(formula, [px, py], 0)) {
+                        if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
                     }
@@ -2612,6 +2599,18 @@
         }
         return false;
     };
+
+    // ver1.1.4：プレイヤーの予測判定を行う
+    Game_Event.prototype.testPlayerDestinationFan_Artm = function(formula, pos, isReverse) {
+        const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
+        const sign = [pos[0] - prevPos[0], pos[1] - prevPos[1]];
+        pos[0] = sign[0] < 0 ? Math.floor(pos[0]) : (sign[0] > 0 ? Math.ceil(pos[0]) : pos[0]);
+        pos[1] = sign[1] < 0 ? Math.floor(pos[1]) : (sign[1] > 0 ? Math.ceil(pos[1]) : pos[1]);
+        return (
+            (pos[0] >= formula[0]) && (pos[0] <= formula[0]) &&
+            (pos[1] >= formula[1]) && (pos[1] <= formula[2])
+        );
+    }
 
     // 菱形範囲の探索(地形考慮完全無視)
     Game_Event.prototype.sensorDiamond = function() {
@@ -2652,21 +2651,6 @@
         }
     }
     
-    // ver1.1.4：移動先を対象とした探索判定を行う(隣接マス探索用）
-    const calcDestPos = ((key, pos) => {
-        const realPos = [DefRealRangeX[0], DefRealRangeY[0]];
-        return {
-            "-1-1":[Math.floor(pos[0]) + realPos[0], Math.floor(pos[1]) + realPos[1]],
-            "0-1" :[pos[0], Math.floor(pos[1]) + realPos[1]],
-            "1-1" :[Math.ceil(pos[0]) - realPos[0], Math.floor(pos[1]) + realPos[1]],
-            "10"  :[Math.ceil(pos[0]) - realPos[0], pos[1]],
-            "11"  :[Math.ceil(pos[0]) - realPos[0], Math.ceil(pos[1]) - realPos[1]],
-            "01"  :[pos[0], Math.ceil(pos[1]) - realPos[1]],
-            "-11" :[Math.floor(pos[0]) + realPos[0], Math.ceil(pos[1]) - realPos[1]],
-            "-10" :[Math.floor(pos[0]) + realPos[0], pos[1]]
-        }[key] ?? pos;
-    });
-
     // ver1.1.4：内部処理を追加
     const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
 
@@ -2680,8 +2664,9 @@
         // ver1.1.4：移動先を対象とした探索判定を行う
         if (IsRealUnder0_5) {
             const posOld = $gameTemp.playerPos_Artm(this.eventId(), 0);
-            const key = "" + Math.sign(pos[0] - posOld[0]) + Math.sign(pos[1] - posOld[1]);
-            pos = this.isSensorFound() ? calcDestPos(key, pos) : pos;
+            const posKey = "" + Math.sign(pos[0] - posOld[0]) + Math.sign(pos[1] - posOld[1]);
+            const destPos = this.testPlayerDestinationSide_Artm(posKey, pos);
+            pos = this.isSensorFound() ? destPos : pos;
         }
         const sx = flrDec(this.deltaXFrom(pos[0]));
         const sy = flrDec(this.deltaYFrom(pos[1]));
@@ -2722,6 +2707,21 @@
             return true;
         }
         return false;
+    };
+
+    // ver1.1.4：プレイヤーの予測判定を行う(隣接マス探索用）
+    Game_Event.prototype.testPlayerDestinationSide_Artm = function(key, pos) {
+        const realPos = [DefRealRangeX[0], DefRealRangeY[0]];
+        return {
+            "-1-1":[Math.floor(pos[0]) + realPos[0], Math.floor(pos[1]) + realPos[1]],
+            "0-1" :[pos[0], Math.floor(pos[1]) + realPos[1]],
+            "1-1" :[Math.ceil(pos[0]) - realPos[0], Math.floor(pos[1]) + realPos[1]],
+            "10"  :[Math.ceil(pos[0]) - realPos[0], pos[1]],
+            "11"  :[Math.ceil(pos[0]) - realPos[0], Math.ceil(pos[1]) - realPos[1]],
+            "01"  :[pos[0], Math.ceil(pos[1]) - realPos[1]],
+            "-11" :[Math.floor(pos[0]) + realPos[0], Math.ceil(pos[1]) - realPos[1]],
+            "-10" :[Math.floor(pos[0]) + realPos[0], pos[1]]
+        }[key] ?? pos;
     };
 
     Game_Event.prototype.rangeSearch = function(strDir, rx, ry, signX, signY, noPass) {
