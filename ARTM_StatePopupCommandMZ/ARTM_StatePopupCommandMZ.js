@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ***********************************************************************
 // ver.1.00: 新規公開版
+// ver.1.01: 0ターン目が表示されてしまう不具合を修正
 // ***********************************************************************
 /*:ja
  * @target MZ
@@ -40,20 +41,20 @@
  * %に残りターン数が表示されます。
  * @default 残り%ターン
  *
- * @param turns_fontsize
+ * @param turns_font_size
  * @type number
  * @text 残りターンのフォントサイズ
  * @desc 残りターンのフォントサイズを指定します。
  * @default 20
  *
- * @param turns_fontcolor
+ * @param turns_font_color
  * @type string
  * @text 残りターンのフォントカラー
  * @desc 残りターンのフォントカラーをR,G,B,A形式で指定します。
  * 赤255,緑255,青50,透明度80%の例：「255, 255, 50, 0.8」
  * @default 255, 255, 50, 0.8
  *
- * @param isdisp_icon_pt
+ * @param is_disp_icon_pt
  * @type boolean
  * @on 表示する
  * @off 表示しない
@@ -61,7 +62,7 @@
  * @desc 味方パーティの状態アイコン表示を設定します。
  * @default true
  *
- * @param isdisp_icon_em
+ * @param is_disp_icon_em
  * @type boolean
  * @on 表示する
  * @off 表示しない
@@ -95,10 +96,10 @@
  * @max 99
  * @text コマンド追加の位置
  * @desc コマンドを追加する位置を指定します。
- * (1～：先頭から、-1～：末尾から、0は末尾)
+ * (1～：先頭から、-1～：末尾-1から、0は末尾)
  * @default -1
  *
- * @param isopa_wnd_bt
+ * @param is_opacity_bt
  * @type boolean
  * @on 透過有り
  * @off 透過無し
@@ -106,7 +107,7 @@
  * @desc ステート対象画面後ろのウィンドウ透過有無を設定します。
  * @default false
  *
- * @param isopa_wnd_st
+ * @param is_opacity_st
  * @type boolean
  * @on 透過有り
  * @off 透過無し
@@ -125,27 +126,29 @@ function Window_BattleTarget() {
 
 (() => {
 
+    _DEBUG = false;
+
     const PARAMS = PluginManager.parameters("ARTM_StatePopupCommandMZ");
-    const tagSPCMZ_DESC      = "SPCMZ_DESC";
-    const tagSPCMZ_HIDE      = "SPCMZ_HIDE";
-    const parCMD_NAME        = PARAMS.cmd_name || "";
-    const parSTATE_TURNS     = PARAMS.state_turns || "";
-    const parTURNS_FONTSIZE  = Number(PARAMS.turns_fontsize || "20");
-    const parTURNS_FONTCOLOR = PARAMS.turns_fontcolor || "255, 255, 50, 0.8";
-    const parTURNS_SORT      = PARAMS.turns_sort || "";
-    const parISDISP_ICON_PT  = PARAMS.isdisp_icon_pt === "true" ? true : false;
-    const parISDISP_ICON_EM  = PARAMS.isdisp_icon_em === "true" ? true : false;
-    const parCMD_TYPE        = PARAMS.cmd_type || "typePartyCmd";
-    const parCMD_POS         = +(PARAMS.cmd_pos || "-1");
-    const parISOPA_WND_BT    = PARAMS.isopa_wnd_bt === "true" ? true : false;
-    const parISOPA_WND_ST    = PARAMS.isopa_wnd_st === "true" ? true : false;
-    const parISOPA_ON = parISOPA_WND_BT === true || parISOPA_WND_ST === true;
+    const SPCMZ_DESC       = "SPCMZ_DESC";
+    const SPCMZ_HIDE       = "SPCMZ_HIDE";
+    const CMD_NAME         = PARAMS.cmd_name || "";
+    const CMD_TYPE         = PARAMS.cmd_type || "typePartyCmd";
+    const CMD_POS          = +(PARAMS.cmd_pos || "-1");
+    const STATE_TURNS      = PARAMS.state_turns || "";
+    const TURNS_FONT_SIZE  = +(PARAMS.turns_font_size || "20");
+    const TURNS_FONT_COLOR = PARAMS.turns_font_color || "255, 255, 50, 0.8";
+    const TURNS_SORT       = PARAMS.turns_sort || "";
+    const IS_DISP_ICON_PT  = PARAMS.is_disp_icon_pt.toLowerCase() === "true";
+    const IS_DISP_ICON_EM  = PARAMS.is_disp_icon_em.toLowerCase() === "true";
+    const IS_OPACITY_BT    = PARAMS.is_opacity_bt.toLowerCase() === "true";
+    const IS_OPACITY_ST    = PARAMS.is_opacity_st.toLowerCase() === "true";
+    const IS_OPACITY       = IS_OPACITY_BT || IS_OPACITY_ST;
 
     // -----------------------------------------------------
     // Scene_Battle
     // -----------------------------------------------------
     Scene_Battle.prototype.addWindow_Artm = function(window) {
-        if (parISOPA_ON !== false) {
+        if (IS_OPACITY !== false) {
             this._windowLayerSpc.addChild(window);
         } else {
             this.addWindow(window);
@@ -156,7 +159,7 @@ function Window_BattleTarget() {
     Scene_Base.prototype.createWindowLayer = function() {
         _Scene_Base_createWindowLayer.call(this);
         if (this instanceof Scene_Battle) {
-            if (parISOPA_ON !== false) {
+            if (IS_OPACITY !== false) {
                 this._windowLayerSpc = new WindowLayer();
                 this._windowLayerSpc.x = this._windowLayer.x;
                 this._windowLayerSpc.y = this._windowLayer.y;
@@ -169,7 +172,7 @@ function Window_BattleTarget() {
         Scene_Battle.prototype.createPartyCommandWindow;
     Scene_Battle.prototype.createPartyCommandWindow = function() {
         _Scene_Battle_createPartyCommandWindow.call(this);
-        if (parCMD_TYPE === "typePartyCmd") {
+        if (CMD_TYPE === "typePartyCmd") {
             this._partyCommandWindow.setHandler(
                 "stpopup",
                 this.commandStatePopup_Artm.bind(this)
@@ -182,7 +185,7 @@ function Window_BattleTarget() {
         Scene_Battle.prototype.createActorCommandWindow;
     Scene_Battle.prototype.createActorCommandWindow = function() {
         _Scene_Battle_createActorCommandWindow.call(this);
-        if (parCMD_TYPE === "typeActorCmd") {
+        if (CMD_TYPE === "typeActorCmd") {
             this._actorCommandWindow.setHandler(
                 "stpopup",
                 this.commandStatePopup_Artm.bind(this)
@@ -193,6 +196,28 @@ function Window_BattleTarget() {
 
     Scene_Battle.prototype.commandStatePopup_Artm = function() {
         this.startTargetSelection_Artm();
+    };
+
+    Scene_Battle.prototype.startTargetSelection_Artm = function() {
+        if (_DEBUG) {
+            this._targetWindowArtm.setStateListWindow(this._stateListWindowArtm);
+            this.showStateListWindow_Artm();
+        }
+        this._targetWindowArtm.refresh();
+        this._targetWindowArtm.show();
+        this._targetWindowArtm.select(0);
+        this._targetWindowArtm.activate();
+        if (IS_OPACITY_BT === false) {
+            this._statusWindow.hide();
+        }
+    };
+
+    Scene_Battle.prototype.showStateListWindow_Artm = function() {
+        const target = this._targetWindowArtm.target();
+        this._stateListWindowArtm.setTarget(target);
+        this._stateListWindowArtm.refresh();
+        this._stateListWindowArtm.show();
+        this._stateListWindowArtm.activate();
     };
 
     const _Scene_Battle_createAllWindows =
@@ -212,7 +237,10 @@ function Window_BattleTarget() {
     };
 
     Scene_Battle.prototype.targetWindowRect_Artm = function() {
-        return this.enemyWindowRect();
+        return (
+            !_DEBUG ? this.enemyWindowRect() :
+             new Rectangle(0, 0, 0, 0)
+        );
     };
 
     Scene_Battle.prototype.createStateListWindow_Artm = function() {
@@ -239,23 +267,25 @@ function Window_BattleTarget() {
     };
 
     Scene_Battle.prototype.onTargetOk_Artm = function() {
-        const target = this._targetWindowArtm.target();
-        if (parISOPA_WND_ST === false) {
+        if (_DEBUG) {
+            return;
+        } else if (IS_OPACITY_ST === false) {
             this._commandWindowArtm.hide();
             this._statusWindow.hide();
         } else {
             this._statusWindow.show();
         }
         this._targetWindowArtm.hide();
-        this._stateListWindowArtm.setTarget(target);
-        this._stateListWindowArtm.refresh();
-        this._stateListWindowArtm.show();
-        this._stateListWindowArtm.activate();
+        this.showStateListWindow_Artm();
     };
 
     Scene_Battle.prototype.onTargetCancel_Artm = function() {
         this._targetWindowArtm.hide();
-        this._statusWindow.show();
+        if (_DEBUG) {
+            this._targetWindowArtm._stateListWindow.hide();
+            this._targetWindowArtm._stateListWindow = null;
+        }
+        this._statusWindow.show();        
         this._commandWindowArtm.show();
         this._commandWindowArtm.activate();
     };
@@ -263,23 +293,13 @@ function Window_BattleTarget() {
     Scene_Battle.prototype.onStateCancel_Artm = function() {
         this._stateListWindowArtm.hide();
         this._commandWindowArtm.show();
-        if (parISOPA_WND_BT === false) {
+        if (IS_OPACITY_BT === false) {
             this._statusWindow.hide();
         } else {
             this._statusWindow.show();
         }
         this._targetWindowArtm.show();
         this._targetWindowArtm.activate();
-    };
-
-    Scene_Battle.prototype.startTargetSelection_Artm = function() {
-        this._targetWindowArtm.refresh();
-        this._targetWindowArtm.show();
-        this._targetWindowArtm.select(0);
-        this._targetWindowArtm.activate();
-        if (parISOPA_WND_BT === false) {
-            this._statusWindow.hide();
-        }
     };
 
     // -----------------------------------------------------
@@ -294,6 +314,10 @@ function Window_BattleTarget() {
         this.refresh();
         this.hide();
         this._targetPre = null;
+    };
+
+    Window_BattleTarget.prototype.setStateListWindow = function(window) {
+        this._stateListWindow = window;
     };
 
     Window_BattleTarget.prototype.maxCols = function() {
@@ -371,6 +395,18 @@ function Window_BattleTarget() {
         }
     };
 
+    Window_BattleTarget.prototype.unitChange = function() {
+        const changedUnit = this.getChangedUnit();
+        if (changedUnit === "party" || changedUnit === "troop") {
+            this._targetPre.deselect();
+        }
+        if (_DEBUG) {
+            this._stateListWindow.setTarget(this.target());
+        }
+        this._targetPre = this.target();
+        return changedUnit;
+    };
+
     Window_BattleTarget.prototype.getChangedUnit = function() {
         const target = this.target();
         const targetPre = this._targetPre || target;
@@ -383,15 +419,6 @@ function Window_BattleTarget() {
         return changedUnit;
     };
 
-    Window_BattleTarget.prototype.unitChange = function() {
-        const changedUnit = this.getChangedUnit();
-        if (changedUnit === "party" || changedUnit === "troop") {
-            this._targetPre.deselect();
-        }
-        this._targetPre = this.target();
-        return changedUnit;
-    };
-
     Window_BattleTarget.prototype.processTouch = function() {
         Window_Selectable.prototype.processTouch.call(this);
         if (this.isOpenAndActive()) {
@@ -399,7 +426,7 @@ function Window_BattleTarget() {
             if (target) {
                 if (this._targets.includes(target)) {
                     this.select(this._targets.indexOf(target));
-                    if ($gameTemp.touchState() === "click") {
+                    if ($gameTemp.touchState() === "click" && !_DEBUG) {
                         this.processOk();
                     }
                 }
@@ -462,15 +489,19 @@ function Window_BattleTarget() {
     Window_StateList.prototype.includes = function(item) {
         return (
             item && 
-            item.meta[tagSPCMZ_HIDE] === undefined
+            item.meta[SPCMZ_HIDE] === undefined
         );
     };
 
     Window_StateList.prototype.makeItemList = function() {
-        if (this._target) {
-            this._data = this._target.states().filter(
-                item => this.includes(item)
-            );
+        const target = this._target;
+        if (target) {
+            this._data = target.states().filter(item => {
+                return (
+                    this.includes(item) && 
+                    !target.isStateExpired(item.id)
+                );
+            }, this);
             this.sortItems();
         } else {
             this._data = [];
@@ -478,7 +509,7 @@ function Window_BattleTarget() {
     };
 
     Window_StateList.prototype.sortItems = function() {
-        if (parTURNS_SORT === "stateId") {
+        if (TURNS_SORT === "stateId") {
             this._data.sort((a, b) => a.id - b.id);
         }
     };
@@ -505,17 +536,17 @@ function Window_BattleTarget() {
     };
 
     Window_StateList.prototype.turnsWidth = function() {
-        const testText = parSTATE_TURNS.replace("%", "00")
+        const testText = STATE_TURNS.replace("%", "00")
         return this.textWidth(testText);
     };
 
     Window_StateList.prototype.drawStateTurns = function(state, x, y, width) {
         const turns = this._target._stateTurns[state.id];
-        const turnsText = parSTATE_TURNS.replace("%", turns);
+        const turnsText = STATE_TURNS.replace("%", turns);
         const orgFontSize = this.contents.fontSize;
         if (state.autoRemovalTiming !== 0) {
-            this.changeTextColor("rgba(" + parTURNS_FONTCOLOR + ")");
-            this.contents.fontSize = parTURNS_FONTSIZE;
+            this.changeTextColor("rgba(" + TURNS_FONT_COLOR + ")");
+            this.contents.fontSize = TURNS_FONT_SIZE;
             this.drawText(turnsText, x, y, width, "right");
             this.contents.fontSize = orgFontSize;
         }
@@ -535,7 +566,7 @@ function Window_BattleTarget() {
 
     Window_StateList.prototype.makeDescription = function(item) {
         if (this._data.length > 0) {
-            return item.meta[tagSPCMZ_DESC] || "";
+            return item.meta[SPCMZ_DESC] || "";
         } else {
             return "";
         }
@@ -571,7 +602,7 @@ function Window_BattleTarget() {
     // Window_PartyCommand
     // -----------------------------------------------------
     function addStatePopupCommand(list, length) {
-        const cmdPos = parCMD_POS.clamp(-length + 1, length);
+        const cmdPos = CMD_POS.clamp(-length + 1, length);
         if (cmdPos > 0 && cmdPos < length) {
             list.splice(cmdPos - 1, 0, list[length - 1]);
             list.pop();
@@ -585,13 +616,13 @@ function Window_BattleTarget() {
         Window_PartyCommand.prototype.makeCommandList;
     Window_PartyCommand.prototype.makeCommandList = function() {
         _Window_PartyCommand_makeCommandList.call(this);
-       if (parCMD_TYPE === "typePartyCmd") {
+       if (CMD_TYPE === "typePartyCmd") {
            this.addStatePopupCommand();
        }
     };
 
     Window_PartyCommand.prototype.addStatePopupCommand = function() {
-        this.addCommand(parCMD_NAME, "stpopup", true);
+        this.addCommand(CMD_NAME, "stpopup", true);
         addStatePopupCommand(this._list, this._list.length);
     };
 
@@ -602,7 +633,7 @@ function Window_BattleTarget() {
         Window_ActorCommand.prototype.makeCommandList;
     Window_ActorCommand.prototype.makeCommandList = function() {
         _Window_ActorCommand_makeCommandList.call(this);
-        if (parCMD_TYPE === "typeActorCmd") {
+        if (CMD_TYPE === "typeActorCmd") {
             if (this._actor) {
                 this.addStatePopupCommand();
             }
@@ -610,7 +641,7 @@ function Window_BattleTarget() {
     };
 
     Window_ActorCommand.prototype.addStatePopupCommand = function() {
-        this.addCommand(parCMD_NAME, "stpopup", true);
+        this.addCommand(CMD_NAME, "stpopup", true);
         addStatePopupCommand(this._list, this._list.length);
     };
 
@@ -661,7 +692,7 @@ function Window_BattleTarget() {
     const _Window_StatusBase_placeStateIcon =
         Window_StatusBase.prototype.placeStateIcon;
     Window_StatusBase.prototype.placeStateIcon = function(actor, x, y) {
-        if (parISDISP_ICON_PT === false) {
+        if (IS_DISP_ICON_PT === false) {
             return;
         }
         _Window_StatusBase_placeStateIcon.call(this, actor, x, y);
@@ -674,7 +705,7 @@ function Window_BattleTarget() {
         Sprite_Enemy.prototype.createStateIconSprite;
     Sprite_Enemy.prototype.createStateIconSprite = function() {
         _Sprite_Enemy_createStateIconSprite.call(this);
-        if (parISDISP_ICON_EM === false) {
+        if (IS_DISP_ICON_EM === false) {
             this.children.pop();
         }
     };
