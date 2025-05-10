@@ -6,6 +6,7 @@
 // ***********************************************************************
 // ver.1.00: 新規公開版
 // ver.1.01: 0ターン目が表示されてしまう不具合を修正
+// ver.1.10: バフ・デバフに対応
 // ***********************************************************************
 /*:ja
  * @target MZ
@@ -496,15 +497,34 @@ function Window_BattleTarget() {
     Window_StateList.prototype.makeItemList = function() {
         const target = this._target;
         if (target) {
-            this._data = target.states().filter(item => {
-                return (
-                    this.includes(item) && 
-                    !target.isStateExpired(item.id)
-                );
-            }, this);
-            this.sortItems();
+            this.makeStateItemList();
+            this.makeBuffItemList();
         } else {
             this._data = [];
+        }
+    };
+
+    Window_StateList.prototype.makeStateItemList = function() {
+        const target = this._target;
+        this._data = target.states().filter(item => {
+            return (
+                this.includes(item) && 
+                !target.isStateExpired(item.id)
+            );
+        }, this);
+        this.sortItems();
+    };
+
+    Window_StateList.prototype.makeBuffItemList = function() {
+        const target = this._target;
+        for (let i = 0, j = 0; i < target._buffs.length; i++) {
+            if (target.isBuffOrDebuffAffected(i) && !target.isBuffExpired(i)) {
+                this._data.push({
+                    "paramId": i,
+                    "iconIndex": target.buffIcons()[j++],
+                    "name": $dataSystem.terms.params[i]
+                });
+            }
         }
     };
 
@@ -541,7 +561,12 @@ function Window_BattleTarget() {
     };
 
     Window_StateList.prototype.drawStateTurns = function(state, x, y, width) {
-        const turns = this._target._stateTurns[state.id];
+        let turns;
+        if (state.id) {
+            turns = this._target._stateTurns[state.id];
+        } else {
+            turns = this._target._buffTurns[state.paramId];
+        }
         const turnsText = STATE_TURNS.replace("%", turns);
         const orgFontSize = this.contents.fontSize;
         if (state.autoRemovalTiming !== 0) {
@@ -566,7 +591,11 @@ function Window_BattleTarget() {
 
     Window_StateList.prototype.makeDescription = function(item) {
         if (this._data.length > 0) {
-            return item.meta[SPCMZ_DESC] || "";
+            if (item.meta) {
+                return item.meta[SPCMZ_DESC] || "";
+            } else {
+                return "";
+            }
         } else {
             return "";
         }
