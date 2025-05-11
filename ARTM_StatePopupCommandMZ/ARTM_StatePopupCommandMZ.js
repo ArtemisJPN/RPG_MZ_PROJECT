@@ -7,6 +7,7 @@
 // ver.1.00: 新規公開版
 // ver.1.01: 0ターン目が表示されてしまう不具合を修正
 // ver.1.10: バフ・デバフに対応
+// ver.1.20: ターゲット選択画面の非表示オプションを追加
 // ***********************************************************************
 /*:ja
  * @target MZ
@@ -116,6 +117,15 @@
  * @desc ステート一覧画面後ろのウィンドウ透過有無を設定します。
  * @default false
  *
+ * @param is_nodisp_bt
+ * @type boolean
+ * @on 有効
+ * @off 無効
+ * @text 対象者選択画面の非表示設定
+ * @desc 対象者選択画面の非表示設定を設定します。
+ * 有効の場合、対象者にフォーカスインすると詳細表示します。
+ * @default false
+ *
  */
 
 // -----------------------------------------------------
@@ -126,8 +136,6 @@ function Window_BattleTarget() {
 }
 
 (() => {
-
-    _DEBUG = false;
 
     const PARAMS = PluginManager.parameters("ARTM_StatePopupCommandMZ");
     const SPCMZ_DESC       = "SPCMZ_DESC";
@@ -144,6 +152,7 @@ function Window_BattleTarget() {
     const IS_OPACITY_BT    = PARAMS.is_opacity_bt.toLowerCase() === "true";
     const IS_OPACITY_ST    = PARAMS.is_opacity_st.toLowerCase() === "true";
     const IS_OPACITY       = IS_OPACITY_BT || IS_OPACITY_ST;
+    const IS_NODISP_BT     = PARAMS.is_nodisp_bt.toLowerCase() === "true";
 
     // -----------------------------------------------------
     // Scene_Battle
@@ -200,7 +209,7 @@ function Window_BattleTarget() {
     };
 
     Scene_Battle.prototype.startTargetSelection_Artm = function() {
-        if (_DEBUG) {
+        if (IS_NODISP_BT) {
             this._targetWindowArtm.setStateListWindow(this._stateListWindowArtm);
             this.showStateListWindow_Artm();
         }
@@ -239,7 +248,7 @@ function Window_BattleTarget() {
 
     Scene_Battle.prototype.targetWindowRect_Artm = function() {
         return (
-            !_DEBUG ? this.enemyWindowRect() :
+            !IS_NODISP_BT ? this.enemyWindowRect() :
              new Rectangle(0, 0, 0, 0)
         );
     };
@@ -268,7 +277,7 @@ function Window_BattleTarget() {
     };
 
     Scene_Battle.prototype.onTargetOk_Artm = function() {
-        if (_DEBUG) {
+        if (IS_NODISP_BT) {
             return;
         } else if (IS_OPACITY_ST === false) {
             this._commandWindowArtm.hide();
@@ -282,7 +291,7 @@ function Window_BattleTarget() {
 
     Scene_Battle.prototype.onTargetCancel_Artm = function() {
         this._targetWindowArtm.hide();
-        if (_DEBUG) {
+        if (IS_NODISP_BT) {
             this._targetWindowArtm._stateListWindow.hide();
             this._targetWindowArtm._stateListWindow = null;
         }
@@ -401,7 +410,7 @@ function Window_BattleTarget() {
         if (changedUnit === "party" || changedUnit === "troop") {
             this._targetPre.deselect();
         }
-        if (_DEBUG) {
+        if (IS_NODISP_BT) {
             this._stateListWindow.setTarget(this.target());
         }
         this._targetPre = this.target();
@@ -427,7 +436,7 @@ function Window_BattleTarget() {
             if (target) {
                 if (this._targets.includes(target)) {
                     this.select(this._targets.indexOf(target));
-                    if ($gameTemp.touchState() === "click" && !_DEBUG) {
+                    if ($gameTemp.touchState() === "click" && !IS_NODISP_BT) {
                         this.processOk();
                     }
                 }
