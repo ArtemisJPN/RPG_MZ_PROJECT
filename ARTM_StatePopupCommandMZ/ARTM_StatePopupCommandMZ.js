@@ -210,7 +210,7 @@ function Window_BattleTarget() {
 
     Scene_Battle.prototype.startTargetSelection_Artm = function() {
         if (IS_NODISP_BT) {
-            this._targetWindowArtm.setStateListWindow(this._stateListWindowArtm);
+            this._targetWindowArtm.setStateListWindow_Artm(this._stateListWindowArtm);
             this.showStateListWindow_Artm();
         }
         this._targetWindowArtm.refresh();
@@ -259,7 +259,7 @@ function Window_BattleTarget() {
         this._stateListWindowArtm.setHelpWindow(this._helpWindow);
         this._stateListWindowArtm.setHandler("cancel", this.onStateCancel_Artm.bind(this));
         this.addWindow_Artm(this._stateListWindowArtm);
-        BattleManager.setStateListWindow(this._stateListWindowArtm);
+        BattleManager.setStateListWindow_Artm(this._stateListWindowArtm);
     };
 
     Scene_Battle.prototype.stateListWindowRect_Artm = function() {
@@ -326,7 +326,7 @@ function Window_BattleTarget() {
         this._targetPre = null;
     };
 
-    Window_BattleTarget.prototype.setStateListWindow = function(window) {
+    Window_BattleTarget.prototype.setStateListWindow_Artm = function(window) {
         this._stateListWindow = window;
     };
 
@@ -686,11 +686,11 @@ function Window_BattleTarget() {
     // -----------------------------------------------------
     // BattleManager
     // -----------------------------------------------------
-    BattleManager.setStateListWindow = function(stateListWindow) {
-        this._stateListWindowArtm = stateListWindow
+    BattleManager.setStateListWindow_Artm = function(window) {
+        this._stateListWindowArtm = window
     }
 
-    BattleManager.getStateListWindow = function() {
+    BattleManager.getStateListWindow_Artm = function() {
         return this._stateListWindowArtm;
     }
 
@@ -698,7 +698,7 @@ function Window_BattleTarget() {
     // Game_Battler
     // -----------------------------------------------------
     Game_Battler.prototype.refreshStateListWindow = function() {
-        const stateListWindow = BattleManager.getStateListWindow();
+        const stateListWindow = BattleManager.getStateListWindow_Artm();
         if (stateListWindow && stateListWindow.visible) {
             if (this === stateListWindow.target()) {
                 stateListWindow.refresh();
