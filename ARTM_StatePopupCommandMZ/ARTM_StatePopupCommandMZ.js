@@ -101,12 +101,21 @@
  * (1～：先頭から、-1～：末尾-1から、0は末尾)
  * @default -1
  *
+ * @param is_nodisp_bt
+ * @type boolean
+ * @on 有効
+ * @off 無効
+ * @text 対象者選択画面の非表示設定
+ * @desc 対象者選択画面の非表示設定を設定します。
+ * 有効の場合、対象者にフォーカスインすると詳細表示します。
+ * @default false
+ *
  * @param is_opacity_bt
  * @type boolean
  * @on 透過有り
  * @off 透過無し
- * @text ステート対象画面後ろの透過
- * @desc ステート対象画面後ろのウィンドウ透過有無を設定します。
+ * @text 対象者選択画面後ろの透過
+ * @desc 対象者選択画面後ろのウィンドウ透過有無を設定します。
  * @default false
  *
  * @param is_opacity_st
@@ -115,15 +124,6 @@
  * @off 透過無し
  * @text ステート一覧画面後ろの透過
  * @desc ステート一覧画面後ろのウィンドウ透過有無を設定します。
- * @default false
- *
- * @param is_nodisp_bt
- * @type boolean
- * @on 有効
- * @off 無効
- * @text 対象者選択画面の非表示設定
- * @desc 対象者選択画面の非表示設定を設定します。
- * 有効の場合、対象者にフォーカスインすると詳細表示します。
  * @default false
  *
  */
@@ -149,10 +149,10 @@ function Window_BattleTarget() {
     const TURNS_SORT       = PARAMS.turns_sort || "";
     const IS_DISP_ICON_PT  = PARAMS.is_disp_icon_pt.toLowerCase() === "true";
     const IS_DISP_ICON_EM  = PARAMS.is_disp_icon_em.toLowerCase() === "true";
+    const IS_NODISP_BT     = PARAMS.is_nodisp_bt.toLowerCase() === "true";
     const IS_OPACITY_BT    = PARAMS.is_opacity_bt.toLowerCase() === "true";
     const IS_OPACITY_ST    = PARAMS.is_opacity_st.toLowerCase() === "true";
     const IS_OPACITY       = IS_OPACITY_BT || IS_OPACITY_ST;
-    const IS_NODISP_BT     = PARAMS.is_nodisp_bt.toLowerCase() === "true";
 
     // -----------------------------------------------------
     // Scene_Battle
