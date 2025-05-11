@@ -2,4 +2,4 @@
 バトル中、選択したアクター/エネミーがかかっているステート詳細一覧を表示することができます。<br>
 パーティコマンドかアクターコマンドに追加したステート確認コマンドにて、上記を表示できます。<br><br>
 
-![sample01](https://github.com/user-attachments/assets/4142a922-7e8f-4423-8d0e-0c98d43f2103)
+![sample](https://github.com/user-attachments/assets/16bb58a2-cef3-4f05-82be-89b0149154d2)
