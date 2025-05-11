@@ -469,6 +469,21 @@ function Window_BattleTarget() {
         }
     };
 
+    Window_StateList.prototype.refresh = function() {
+        this.makeItemList();
+        Window_Selectable.prototype.refresh.call(this);
+        this.selectLast();
+    };
+
+    Window_StateList.prototype.selectLast = function() {
+        const newIndex = this._data.length - 1;
+        const index = Math.max(this.index(), 0);
+        this.forceSelect(
+            this._data.length > 0 ?
+            (newIndex < index ? newIndex : index) : -1
+        );
+    };
+
     Window_StateList.prototype.target = function() {
         return this._target;
     };
@@ -543,15 +558,6 @@ function Window_BattleTarget() {
         }
     };
 
-    Window_StateList.prototype.selectLast = function() {
-        const newIndex = this._data.length - 1;
-        const index = Math.max(this.index(), 0);
-        this.forceSelect(
-            this._data.length > 0 ?
-            (newIndex < index ? newIndex : index) : -1
-        );
-    };
-
     Window_StateList.prototype.drawItem = function(index) {
         const state = this.itemAt(index);
         if (state) {
@@ -590,12 +596,6 @@ function Window_BattleTarget() {
         const item = this.item() || new Game_Item();
         item.description = this.makeDescription(item);
         this.setHelpWindowItem(item);
-    };
-
-    Window_StateList.prototype.refresh = function() {
-        this.makeItemList();
-        Window_Selectable.prototype.refresh.call(this);
-        this.selectLast();
     };
 
     Window_StateList.prototype.makeDescription = function(item) {
