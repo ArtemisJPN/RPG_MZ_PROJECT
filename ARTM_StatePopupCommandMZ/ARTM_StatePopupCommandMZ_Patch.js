@@ -22,15 +22,15 @@
     // -----------------------------------------------------
     // Scene_Battle
     // -----------------------------------------------------
-    const _Scene_Battle_startTargetSelection = Scene_Battle.prototype.startTargetSelection;
-    Scene_Battle.prototype.startTargetSelection = function() {
-        _Scene_Battle_startTargetSelection.call(this);
+    const _Scene_Battle_startTargetSelection_Artm = Scene_Battle.prototype.startTargetSelection_Artm;
+    Scene_Battle.prototype.startTargetSelection_Artm = function() {
+        _Scene_Battle_startTargetSelection_Artm.call(this);
         BattleManager.callPseudo3dMethod("targeting", $gameParty.members());
     };
 
-    const _Scene_Battle_onTargetCancel = Scene_Battle.prototype.onTargetCancel;
-    Scene_Battle.prototype.onTargetCancel = function() {
-       _Scene_Battle_onTargetCancel.call(this);
+    const _Scene_Battle_onTargetCancel_Artm = Scene_Battle.prototype.onTargetCancel_Artm;
+    Scene_Battle.prototype.onTargetCancel_Artm = function() {
+       _Scene_Battle_onTargetCancel_Artm.call(this);
        BattleManager.callPseudo3dMethod("endTargeting");
     };
 
