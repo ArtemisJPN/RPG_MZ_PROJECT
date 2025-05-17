@@ -38,8 +38,8 @@
  *
  * @param state_turns
  * @type string
- * @text ステートの残りターン
- * @desc ステートの残りターン表示を設定します。
+ * @text 残りターン
+ * @desc 残りターン表示を設定します。
  * %に残りターン数が表示されます。
  * @default 残り%ターン
  *
@@ -68,19 +68,9 @@
  * @type boolean
  * @on 表示する
  * @off 表示しない
- * @text 敵グループの状態アイコン
- * @desc 敵グループの状態アイコン表示を設定します。
+ * @text 敵方グループの状態アイコン
+ * @desc 敵方グループの状態アイコン表示を設定します。
  * @default true
- *
- * @param turns_sort
- * @type select
- * @option ステートID順
- * @value stateId
- * @option 優先度順
- * @value statePrior
- * @text ステートのソート方法を指定
- * @desc ステートのソート方法を指定します。
- * @default stateId
  *
  * @param cmd_type
  * @type select
@@ -88,7 +78,7 @@
  * @value typePartyCmd
  * @option アクターコマンド
  * @value typeActorCmd
- * @text コマンドタイプ
+ * @text コマンドの種類
  * @desc どのコマンドに追加するかを指定します。
  * @default typePartyCmd
  *
@@ -96,7 +86,7 @@
  * @type number
  * @min -99
  * @max 99
- * @text コマンド追加の位置
+ * @text コマンドの位置
  * @desc コマンドを追加する位置を指定します。
  * (1～：先頭から、-1～：末尾-1から、0は末尾)
  * @default -1
@@ -107,7 +97,7 @@
  * @off 無効
  * @text 対象者選択画面の非表示設定
  * @desc 対象者選択画面の非表示設定を設定します。
- * 有効の場合、対象者にフォーカスインすると詳細表示します。
+ * 有効…対象者にフォーカスインするとステート状態を表示する
  * @default false
  *
  * @param is_opacity_bt
@@ -125,6 +115,16 @@
  * @text ステート一覧画面後ろの透過
  * @desc ステート一覧画面後ろのウィンドウ透過有無を設定します。
  * @default false
+ *
+ * @param turns_sort
+ * @type select
+ * @option ステートID順
+ * @value stateId
+ * @option 優先度順
+ * @value statePrior
+ * @text ステートのソート方法を指定
+ * @desc ステートのソート方法を指定します。
+ * @default stateId
  *
  */
 
@@ -331,7 +331,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleTarget.prototype.maxCols = function() {
-        return 2;
+        return IS_NODISP_BT ? 1 : 2;
     };
 
     Window_BattleTarget.prototype.maxItems = function() {
@@ -593,8 +593,15 @@ function Window_BattleTarget() {
     };
 
     Window_StateList.prototype.updateHelp = function() {
-        const item = this.item() || new Game_Item();
-        item.description = this.makeDescription(item);
+        const help = this._helpWindow;
+        const item = this.item();
+        const desc = this.makeDescription(item);
+        if (!item || !desc) {
+            if (help.visible) { help.hide(); }
+            return;
+        }
+        if (!help.visible) { help.show(); }
+        item.description = desc;
         this.setHelpWindowItem(item);
     };
 
