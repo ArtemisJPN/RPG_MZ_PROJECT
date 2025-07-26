@@ -2651,9 +2651,6 @@
         }
     }
     
-    // ver1.1.4：内部処理を追加
-    const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
-
     // 隣接マス探索
     Game_Event.prototype.isSideSearch = function(directionR, directionL, vx, vy) {
         const bothSensor = CEC(DefBothSensor);
@@ -2662,10 +2659,9 @@
         const realY = DefRealRangeY[0];
         let pos = [$gamePlayer._realX, $gamePlayer._realY];
         // ver1.1.4：プレイヤーの予測判定を行う
-        if (IsRealUnder0_5) {
+        if (IsRealUnder0_5 && this.isSensorFound()) {
             const prevPos = $gameTemp.playerPos_Artm(this.eventId(), 0);
-            const destPos = this.testPlayerDestinationSide_Artm(pos, prevPos);
-            pos = this.isSensorFound() ? destPos : pos;
+            pos = this.testPlayerDestinationSide_Artm(pos, prevPos);
         }
         const sx = flrDec(this.deltaXFrom(pos[0]));
         const sy = flrDec(this.deltaYFrom(pos[1]));
@@ -3599,5 +3595,8 @@
             return self.indexOf(val) === i && val > 0;
         });
     }
+
+    // ver1.1.4：内部処理を追加
+    const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
 
 })();
