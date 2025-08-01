@@ -11,12 +11,12 @@
 | ARTM_ActorMultiVictoryMZ | バトル勝利時に対象者（アクター）の勝利ポーズを他のポーズに変更することが出来ます。<br>また、勝利2回→素振り1回→眠りポーズ のようにカスタマイズしたり、即座に別のアクター画像へ切り替えることもできます。|
 | ARTM_ChantingAnimationMZ | バトル中にスキル詠唱中の詠唱者（アクター/エネミー）へ指定IDのアニメーションを表示し続けることが出来ます。 |
 | ARTM_DispStatusInBattleMZ | バトル中に対象者（アクター/エネミー）のステータスや状態異常をウインドウ画面で表示するスキルが使用出来るようになります。 |
-| <s>ARTM_EnemyAsActorSpriteMZ</s><br>※廃止（MITライセンスは保持） | <s>バトル中にアクターを敵として出現させることが出来ます。</s> |
+| <s>ARTM_EnemyAsActorSpriteMZ</s><br>※廃止 | <s>バトル中にアクターを敵として出現させることが出来ます。</s> |
 | ARTM_InfluenceActorFaceMZ | バトル中に対象者(アクター）が特定の状態になった時に、自動で顔画像を変更することが出来ます。<br>特定の状態とは、HPが最大値HPの指定%を下回った時や、MPが最大値MPの指定%を下回った時や、指定のステート状態になった時です。 |
 | ARTM_InfluenceEnemyImageMZ | バトル中に対象者(エネミー）が指定のステート状態になった時に、自動で立ち絵画像を変更することが出来ます。<br><b>ARTM_InfluenceActorFaceMZフォルダ内に格納されています。</b>
 | ARTM_InsertOpeningMapMZ | ゲーム起動時のタイトル画面表示前に、オープニングイベントを追加することが出来ます。 |
-| <s>ARTM_InsertOpeningMap_ForChronus</s><br>※廃止（MITライセンスは保持）<br> | <s>上記プラグインの Chronus.jp 対応版</s> |
-| <s>ARTM_SkillOtherTargetMZ</s><br>※廃止（MITライセンスは保持）<br> | <s>スキル範囲を詠唱者以外に変更することが出来ます。</s> |
+| <s>ARTM_InsertOpeningMap_ForChronus</s><br>※廃止<br> | <s>上記プラグインの Chronus.jp 対応版</s> |
+| <s>ARTM_SkillOtherTargetMZ</s><br>※廃止<br> | <s>スキル範囲を詠唱者以外に変更することが出来ます。</s> |
 | ARTM_PlayerSensorMZ | マンカインド様が作成されたプレイヤー探索プラグインのツクールMZ移植版です。<br>プレイヤーがイベントの範囲内に入ると追跡されるといった、ステルス系ゲームを作成出来ます。 |
 | ARTM_TMDescriptionExMZ | tomoaky様が作成された詳細説明ウィンドウプラグインのツクールMZ移植版です。<br>アイテムやスキルの詳細情報を表示する機能が使えるようになります。 |
 | ARTM_TMEventItemExMz | tomoaky様が作成されたアイテム選択拡張プラグインのツクールMZ移植版です。<br>アイテム選択の処理にヘルプウィンドウを追加し、個数表示の有無と表示行数をアイテムタイプごとに設定出来ます。 |
