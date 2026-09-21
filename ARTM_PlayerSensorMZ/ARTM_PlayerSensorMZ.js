@@ -5,17 +5,18 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
-// 1.0.0 初版
-// 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
-// 1.0.3 直線探索描画の不備を修正
-// 1.1.0 パラメータ「発見状態の継続」を追加
-// 1.1.1 プレイヤー発見時の軽微な修正
-// 1.1.2 扇範囲の探索で範囲内移動中に発見状態が外れる不備を修正
+// 1.2.1 センサーリセット後に探索できなくなる不備を修正
+// 1.2.0 追跡状態の復元機能を改修
+// 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
+// 1.1.4 ver1.1.2を斜め移動にも対応
 // 1.1.3 探索範囲セットアップ時の冗長処理を修正
 //       過去の改修箇所に一部コメントを追加
-// 1.1.4 ver1.1.2を斜め移動にも対応
-// 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
-// 1.2.0 追跡状態の復元機能を改修
+// 1.1.2 扇範囲の探索で範囲内移動中に発見状態が外れる不備を修正
+// 1.1.1 プレイヤー発見時の軽微な修正
+// 1.1.0 パラメータ「発見状態の継続」を追加
+// 1.0.3 直線探索描画の不備を修正
+// 1.0.1 プレイヤー発見時にコモンイベントが発生しない不具合を修正
+// 1.0.0 初版
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -1291,6 +1292,7 @@
         $gameMap.events().forEach(function(event) {
             if (event.getSensorType() !== null) {
                 $gameSystem.neutralSensor(event.eventId(), args)
+                event.setFoundStatus(0); // ver1.2.1
             }
         }, this);
     };
@@ -1470,9 +1472,9 @@
     const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
     Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
         if (DefLocationReset[0] &&
-            !$gameParty.inBattle() &&
-            !$gameMessage.isBusy()) {
+            !$gameParty.inBattle() && !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
+             
         // ver1.1.0：マップID＋イベントIDをキーとして発見状態を保持しておく
         } else if (DefFoundKeep[0]) {
             const baseKey = $gameMap.mapId() + "_";
