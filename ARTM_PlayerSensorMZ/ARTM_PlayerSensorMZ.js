@@ -621,16 +621,17 @@
  *
  * @param Location_Reset
  * @text 場所移動時リセット
- * @desc 場所移動時、元のマップに配置された探索者の追跡状態をリセットするか設定します。(デフォルト:リセットしない)
+ * @desc 場所移動時に全探索者の追跡状態をリセットするか設定します。(デフォルト:リセットしない)
  * @type boolean
  * @on リセットする
  * @off リセットしない
  * @default false
  * @parent マップ設定
  *
- * @param Found_Keep
- * @text 発見状態の継続
- * @desc 場所移動時リセットが無効の場合、元のマップの発見状態を継続するか設定します。(デフォルト:継続しない)
+ * @param Tracking_Resume
+ * @text 追跡中の復元
+ * @desc 移動元マップの追跡状態を復元するか設定※します。
+ * (デフォルト:復元しない)　※場所移動時リセットが無効時のみ
  * @type boolean
  * @on 継続する
  * @off 継続しない
@@ -1063,7 +1064,7 @@
         DefRangeOpacity, DefAutoSensor, DefEventDecision, DefRegionDecisions,
         DefRealRangeX, DefRealRangeY, DefLostSensorSwitch, DefFoundBallon, DefFoundCommon,
         DefFoundDelay, DefFoundSe, DefLostBallon, DefLostCommon, DefLostDelay, DefLostSe,
-        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefFoundKeep,
+        DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefTrackingResume,
         TmpFoundStateList = {}, IsRealUnder0_5;
     DefSensorSwitch = CheckParam("switch", "Sensor_Switch", Parameters["Sensor_Switch"], "D");
     DefLostSensorSwitch = CheckParam("switch", "Lost_Sensor_Switch", Parameters["Lost_Sensor_Switch"]);
@@ -1103,7 +1104,7 @@
     DefTrackingPriority = CheckParam("bool", "Tracking_Priority", Parameters["Tracking_Priority"], false);
     DefFollowerThrough = CheckParam("bool", "Follower_Through", Parameters["Follower_Through"], false);
     DefLocationReset = CheckParam("bool", "Location_Reset", Parameters["Location_Reset"], false);
-    DefFoundKeep = CheckParam("bool", "Found_Keep", Parameters["Found_Keep"], false);
+    DefTrackingResume = CheckParam("bool", "Tracking_Resume", Parameters["Tracking_Resume"], false);
 
     DIR_UP = 8;
     DIR_DOWN = 2;
@@ -1476,7 +1477,7 @@
              $gameSystem.resetSensor();
              
         // ver1.1.0：マップID＋イベントIDをキーとして発見状態を保持しておく
-        } else if (DefFoundKeep[0]) {
+        } else if (DefTrackingResume[0]) {
             const baseKey = $gameMap.mapId() + "_";
             $gameMap.events().forEach(event => {
               if (event.isSensorFound()) {
@@ -1895,7 +1896,7 @@
             $gameSystem.startSensor();
         }
         // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
-        if (!DefFoundKeep[0]) return;
+        if (!DefTrackingResume[0]) return;
         this.events().forEach(event => {
             const eventId = event.event().id;
             const key = this.mapId() + "_" + eventId;
