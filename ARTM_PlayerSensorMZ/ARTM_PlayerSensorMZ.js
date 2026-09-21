@@ -15,6 +15,7 @@
 //       過去の改修箇所に一部コメントを追加
 // 1.1.4 ver1.1.2を斜め移動にも対応
 // 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
+// 1.2.0 追跡状態の復元機能を改修
 // ---------------------------------------------------
 //  移植元:MKR_PlayerSensor.js [ver.3.0.0]
 // ---------------------------------------------------
@@ -717,6 +718,10 @@
  * @max 6
  * @default 1
  *
+ * @command resume_clear
+ * @text 追跡状態の復元用データ全クリア
+ * @desc 追跡状態の復元用データを全てクリアします。
+ *
  */
 /*~struct~Alert:
  *
@@ -1163,6 +1168,14 @@
     // 対象探索者をプレイヤーの位置付近まで移動
     PluginManager.registerCommand(PNAME, "t_move", args => {
         $gameMap._interpreter.moveNearPlayer(args[0]);
+    });
+
+    // ver1.2.0 追跡状態の復元用データクリア
+    PluginManager.registerCommand(PNAME, "resume_clear", args => {
+        for (const key in TmpFoundStateList) {
+            TmpFoundStateList[key].lostPlayer(1, key.split("_")[0]);
+            clearTmpFoundState(key);
+        }
     });
 
     //=========================================================================
@@ -1863,6 +1876,12 @@
     // Game_Map
     //  探索開始処理の自動実行を定義します。
     //=========================================================================
+    // ver1.2.0 追跡状態の復元をクリア
+    function clearTmpFoundState(key) {
+        TmpFoundStateList[key] = null;
+        delete TmpFoundStateList[key];
+    }
+
     const _Game_Map_setupEvents = Game_Map.prototype.setupEvents;
     Game_Map.prototype.setupEvents = function() {
         _Game_Map_setupEvents.call(this);
@@ -1870,17 +1889,15 @@
             $gameSystem.startSensor();
         }
         // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
-        if (DefFoundKeep[0]) {
-            const baseKey = this.mapId() + "_";
-            this.events().forEach(event => {
-                const eventId = event.event().id;
-                const key =  baseKey + eventId;
-                if (TmpFoundStateList[key]) {
-                    this._events[eventId] = TmpFoundStateList[key];
-                    delete TmpFoundStateList[key];
-                }
-            }, this);
-        }
+        if (!DefFoundKeep[0]) return;
+        this.events().forEach(event => {
+            const eventId = event.event().id;
+            const key = this.mapId() + "_" + eventId;
+            if (TmpFoundStateList[key]) {
+                this._events[eventId] = TmpFoundStateList[key];
+                clearTmpFoundState(key);
+            }
+        }, this);
     };
 
     //=========================================================================
@@ -2079,12 +2096,13 @@
         }
     };
 
-    Game_Event.prototype.lostPlayer = function(forceLost = false) {
+    Game_Event.prototype.lostPlayer = function(forceLost = false, vMapId = null) {
         const delay = this.getLostDelay();
         if (delay <= 0 || forceLost) {
             const sensorSwitch = DefSensorSwitch[0];
             const lostSensorSwitch = DefLostSensorSwitch[0];
-            const mapId = $gameMap.mapId();
+            // ver1.2.0 デフォルトマップID or 指定マップID
+            const mapId = vMapId ?? $gameMap.mapId();
             const eventId = this.eventId();
             this.setForceLost(0);
             this.setFoundStatus(0);
