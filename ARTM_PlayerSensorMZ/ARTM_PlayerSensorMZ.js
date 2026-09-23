@@ -1971,9 +1971,8 @@
         
         // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
         const balloons = $gameTemp.backupBalloons_Artm();
-        if (!DefTrackingResume[0] || balloons.length === 0) {
-            // ver1.3.2: フキダシ対象のバックアップをクリアする
-            balloons.length = 0;
+        if (!DefTrackingResume[0]) {
+            balloons.length = 0; // ver1.3.2
             return;
         }
         this.events().forEach(event => {
@@ -1982,8 +1981,7 @@
             if (TmpFoundStateList[key]) {
                 this._events[eventId] = TmpFoundStateList[key];
                 clearTmpFoundState(key);
-                // ver1.3.2: フキダシ対象のバックアップからフキダシを再現する
-                $gameTemp.retryRequestBalloon_Artm(eventId);
+                $gameTemp.retryRequestBalloon_Artm(eventId); // ver1.3.2
             }
         }, this);
     };
