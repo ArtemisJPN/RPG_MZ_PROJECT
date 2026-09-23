@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
+// 1.3.1 発見時のウエイト残留対応
 // 1.3.0 発見時フキダシループ機能を追加
 // 1.2.1 センサーリセット後に探索できなくなる不備を修正
 // 1.2.0 追跡状態の復元機能を改修
@@ -2117,6 +2118,8 @@
             this.setFoundStatus(1);
             this.resetFoundDelay();
             this.resetLostDelay();
+            // ver1.3.1: 発見時のウエイト残留対応
+            this._waitCount = 0;
             // 発見後スイッチON
             const sw_on = 
                 this.getSensorSwitch() !== null ?
