@@ -1210,6 +1210,9 @@
         // ver1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
         if (target.getBalloonLoop() === 1) {
             const balloon = this._balloonQueue.slice(-1)[0];
+            if (balloon.mapId_Artm === undefined) {
+                balloon.mapId_Artm = $gameMap.mapId();
+            }
             this._backupBalloons_Artm.push(balloon);
         }
     };
@@ -1248,8 +1251,13 @@
     // ver1.3.2：指定イベントのフキダシ対象バックアップを取得する
     Game_Temp.prototype.backupBalloon_Artm = function(eventId) {
         const balloons = this._backupBalloons_Artm;
-        const idx = balloons.findIndex(b => b.target.eventId() === eventId);
-        return balloons.splice(idx, 1)[0];
+        const index = balloons.findIndex(balloon => {
+            return (
+                balloon.mapId_Artm === $gameMap.mapId() &&
+                balloon.target.eventId() === eventId
+            );
+        });
+        return index >= 0 ? balloons.splice(index, 1)[0] : null;
     };
 
     // ver1.3.2：指定イベントのフキダシを再要求する
