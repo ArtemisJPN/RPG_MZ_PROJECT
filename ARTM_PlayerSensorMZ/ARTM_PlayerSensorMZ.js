@@ -5,7 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
-// 1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
+// 1.3.2 発見時フキダシループ機能の不備を修正
 // 1.3.1 発見時のウエイト残留対応
 // 1.3.0 発見時フキダシループ機能を追加
 // 1.2.1 センサーリセット後に探索できなくなる不備を修正
@@ -1200,7 +1200,7 @@
         _Game_Temp_initialize.call(this);
         this._eventId_Artm = 0;
         this._playerPos_Artm = {};
-        this._backupBalloon_Artm = []; // ver1.3.0: フキダシ対象のバックアップ
+        this._backupBalloons_Artm = []; // ver1.3.0: フキダシ対象のバックアップ
     };
 
     // ver1.3.0: フキダシ対象のバックアップを保存する
@@ -1210,7 +1210,7 @@
         // ver1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
         if (target.getBalloonLoop() === 1) {
             const balloon = this._balloonQueue.slice(-1)[0];
-            this._backupBalloon_Artm.push(balloon);
+            this._backupBalloons_Artm.push(balloon);
         }
     };
 
@@ -1240,9 +1240,24 @@
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
-    // ver1.3.0：フキダシ対象のバックアップを取得する
-    Game_Temp.prototype.backupBalloon_Artm = function() {
-        return this._backupBalloon_Artm;
+    // ver1.3.0：フキダシ対象バックアップを取得する
+    Game_Temp.prototype.backupBalloons_Artm = function() {
+        return this._backupBalloons_Artm;
+    };
+
+    // ver1.3.2：指定イベントのフキダシ対象バックアップを取得する
+    Game_Temp.prototype.backupBalloon_Artm = function(eventId) {
+        const balloons = this._backupBalloons_Artm;
+        const idx = balloons.findIndex(b => b.target.eventId() === eventId);
+        return balloons.splice(idx, 1)[0];
+    };
+
+    // ver1.3.2：指定イベントのフキダシを再要求する
+    Game_Temp.prototype.retryRequestBalloon_Artm = function(eventId) {
+        const balloon = this.backupBalloon_Artm(eventId);
+        if (balloon) {
+            this.requestBalloon(balloon.target, balloon.balloonId);
+        }
     };
 
     //=========================================================================
@@ -1317,7 +1332,6 @@
         $gameMap.events().forEach(function(event) {
             if (event.getSensorType() !== null) {
                 $gameSystem.neutralSensor(event.eventId(), args)
-                event.setFoundStatus(0); // ver1.2.1
             }
         }, this);
     };
@@ -1357,6 +1371,12 @@
                     ], false);
                 }
             }, this)
+        }
+        // ver1.2.1: 発見状態をクリアする
+        event.setFoundStatus(0);
+        // ver1.3.2: 指定イベントのフキダシ対象バックアップをクリアする
+        if (DefTrackingResume[0]) {
+            $gameTemp.backupBalloon_Artm(eventId);
         }
     };
 
@@ -1611,12 +1631,10 @@
     const _Game_CharacterBaseEndBalloon = Game_CharacterBase.prototype.endBalloon;
     Game_CharacterBase.prototype.endBalloon = function() {
         _Game_CharacterBaseEndBalloon.call(this);
-        if (this.getBalloonLoop() === 0) return;
-        if ($gameTemp._backupBalloon_Artm.length > 0) {
-            const balloon = $gameTemp.backupBalloon_Artm().shift();
-             if (balloon.target.getFoundStatus() === 1) {
-                $gameTemp.requestBalloon(balloon.target, balloon.balloonId);
-            }
+        if (this.getBalloonLoop() === 1) {
+           if ($gameTemp.backupBalloons_Artm().length > 0) {
+               $gameTemp.retryRequestBalloon_Artm(this.eventId());
+           }
         }
     };
     Game_CharacterBase.prototype.startViewRange = function() {
@@ -1942,14 +1960,22 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
+        
         // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
-        if (!DefTrackingResume[0]) return;
+        const balloons = $gameTemp.backupBalloons_Artm();
+        if (!DefTrackingResume[0] || balloons.length === 0) {
+            // ver1.3.2: フキダシ対象のバックアップをクリアする
+            balloons.length = 0;
+            return;
+        }
         this.events().forEach(event => {
             const eventId = event.event().id;
             const key = this.mapId() + "_" + eventId;
             if (TmpFoundStateList[key]) {
                 this._events[eventId] = TmpFoundStateList[key];
                 clearTmpFoundState(key);
+                // ver1.3.2: フキダシ対象のバックアップからフキダシを再現する
+                $gameTemp.retryRequestBalloon_Artm(eventId);
             }
         }, this);
     };
@@ -2191,6 +2217,10 @@
                 if (interpreter) {
                     interpreter.setupReservedCommonEvent();
                 }
+            }
+            // ver1.3.2: 指定イベントのフキダシ対象バックアップをクリアする
+            if (DefTrackingResume[0]) {
+                $gameTemp.backupBalloon_Artm(eventId);
             }
         } else {
             this.setLostDelay(delay - 1);
