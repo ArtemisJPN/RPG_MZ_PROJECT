@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
+// 1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
 // 1.3.1 発見時のウエイト残留対応
 // 1.3.0 発見時フキダシループ機能を追加
 // 1.2.1 センサーリセット後に探索できなくなる不備を修正
@@ -1199,14 +1200,18 @@
         _Game_Temp_initialize.call(this);
         this._eventId_Artm = 0;
         this._playerPos_Artm = {};
-        this._backupBalloon_Artm = []; // ver1.3.0: 発見時フキダシループ機能
+        this._backupBalloon_Artm = []; // ver1.3.0: フキダシ対象のバックアップ
     };
 
-    // ver1.3.0: フキダシ対象イベントのバックアップを保存する
+    // ver1.3.0: フキダシ対象のバックアップを保存する
     const _Game_TempRequestBalloon = Game_Temp.prototype.requestBalloon;
     Game_Temp.prototype.requestBalloon = function(target, balloonId) {
         _Game_TempRequestBalloon.call(this, target, balloonId);
-        this._backupBalloon_Artm.push(this._balloonQueue.slice(-1)[0]);
+        // ver1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
+        if (target.getBalloonLoop() === 1) {
+            const balloon = this._balloonQueue.slice(-1)[0];
+            this._backupBalloon_Artm.push(balloon);
+        }
     };
 
     Game_Temp.prototype.getEventId_Artm = function() {
@@ -1235,7 +1240,7 @@
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
-    // ver1.3.0：フキダシ対象イベントのバックアップを取得する
+    // ver1.3.0：フキダシ対象のバックアップを取得する
     Game_Temp.prototype.backupBalloon_Artm = function() {
         return this._backupBalloon_Artm;
     };
