@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
+// 1.3.0 発見時フキダシループ機能を追加
 // 1.2.1 センサーリセット後に探索できなくなる不備を修正
 // 1.2.0 追跡状態の復元機能を改修
 // 1.1.5 Z座標によるタイルマップ上の子要素ソートを阻害する不具合を修正
@@ -303,6 +304,10 @@
  *     ・探索者の前方10マスの範囲を探索しますが、
  *       視界範囲内のマップイベントの存在を考慮します。
  *       さらにリージョン番号10番のタイルを壁として認識します。
+ *
+ *   <PsensorL:10 blp>
+ *     ・探索者の前方10マスの範囲を探索します。
+ *       さらに発見時のフキダシ表示をループします。
  *
  *
  * プラグインコマンド:
@@ -1193,6 +1198,14 @@
         _Game_Temp_initialize.call(this);
         this._eventId_Artm = 0;
         this._playerPos_Artm = {};
+        this._backupBalloon_Artm = []; // ver1.3.0: 発見時フキダシループ機能
+    };
+
+    // ver1.3.0: フキダシ対象イベントのバックアップを保存する
+    const _Game_TempRequestBalloon = Game_Temp.prototype.requestBalloon;
+    Game_Temp.prototype.requestBalloon = function(target, balloonId) {
+        _Game_TempRequestBalloon.call(this, target, balloonId);
+        this._backupBalloon_Artm.push(this._balloonQueue.slice(-1)[0]);
     };
 
     Game_Temp.prototype.getEventId_Artm = function() {
@@ -1219,6 +1232,11 @@
     Game_Temp.prototype.playerPos_Artm = function(id, flag) {
         const pos = this._playerPos_Artm["" + id] ?? [$gamePlayer._realX, $gamePlayer._realY];
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
+    };
+
+    // ver1.3.0：フキダシ対象イベントのバックアップを取得する
+    Game_Temp.prototype.backupBalloon_Artm = function() {
+        return this._backupBalloon_Artm;
     };
 
     //=========================================================================
@@ -1551,6 +1569,7 @@
         this._lostDelay = this._lostMaxDelay;
         this._activeMode = 0;
         this._forceLost = 0;
+        this._balloonLoop = 0; // ver1.3.0: 発見時フキダシループ機能
     };
 
     const _Game_CharacterBaseMoveStraight = Game_CharacterBase.prototype.moveStraight;
@@ -1581,6 +1600,19 @@
         }
         _Game_CharacterBaseSetDirection.call(this,d);
     }
+
+    // ver1.3.0: 発見時フキダシループ機能
+    const _Game_CharacterBaseEndBalloon = Game_CharacterBase.prototype.endBalloon;
+    Game_CharacterBase.prototype.endBalloon = function() {
+        _Game_CharacterBaseEndBalloon.call(this);
+        if (this.getBalloonLoop() === 0) return;
+        if ($gameTemp._backupBalloon_Artm.length > 0) {
+            const balloon = $gameTemp.backupBalloon_Artm().shift();
+             if (balloon.target.getFoundStatus() === 1) {
+                $gameTemp.requestBalloon(balloon.target, balloon.balloonId);
+            }
+        }
+    };
     Game_CharacterBase.prototype.startViewRange = function() {
         this.setViewRangeStatus(1);
     };
@@ -1879,6 +1911,15 @@
         return this.getSensorStatus() === 1 && this.getFoundStatus() === 1;
     };
 
+    // ver1.3.0: 発見時フキダシループ機能
+    Game_CharacterBase.prototype.setBalloonLoop = function(balloonLoop) {
+        this._balloonLoop = balloonLoop;
+    };
+
+    Game_CharacterBase.prototype.getBalloonLoop = function() {
+        return this._balloonLoop;
+    };
+
     //=========================================================================
     // Game_Map
     //  探索開始処理の自動実行を定義します。
@@ -2021,6 +2062,9 @@
             } else if (op.match(/^am([0-1]|\x1bs\[(\d+|[a-d])\])$/)) { // 探索続行指定
                 const m = op.match(/^am([0-1]|\x1bs\[(\d+|[a-d])\])$/);
                 obj.setActiveMode(m[1]);
+            // ver1.3.0: 発見時フキダシループ機能
+            } else if (op === 'blp') { // フキダシループ指定
+                obj.setBalloonLoop(1);
             }
         });
     }
