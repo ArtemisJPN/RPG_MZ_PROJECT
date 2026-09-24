@@ -1183,7 +1183,7 @@
         $gameMap._interpreter.moveNearPlayer(args[0]);
     });
 
-    // ver1.2.0 追跡状態の復元用データクリア
+    // 追跡状態の復元用データクリア
     PluginManager.registerCommand(PNAME, "resume_clear", args => {
         for (const key in TmpFoundStateList) {
             TmpFoundStateList[key].lostPlayer(1, key.split("_")[0]);
@@ -1200,15 +1200,13 @@
         _Game_Temp_initialize.call(this);
         this._eventId_Artm = 0;
         this._playerPos_Artm = {};
-        this._backupBalloons_Artm = []; // ver1.3.0: フキダシ対象のバックアップ
+        this._backupBalloons_Artm = [];
     };
 
-    // ver1.3.0: フキダシ対象のバックアップを保存する
     const _Game_TempRequestBalloon = Game_Temp.prototype.requestBalloon;
     Game_Temp.prototype.requestBalloon = function(target, balloonId) {
         _Game_TempRequestBalloon.call(this, target, balloonId);
-        // ver1.3.2 フキダシ対象のバックアップが無条件で実行される不備を修正
-        if (target.getBalloonLoop() === 1) {
+        if (target.getFoundStatus() === 1 && target.getBalloonLoop() === 1) {
             const balloon = this._balloonQueue.slice(-1)[0];
             if (balloon.mapId_Artm === undefined) {
                 balloon.mapId_Artm = $gameMap.mapId();
@@ -1231,24 +1229,20 @@
         return $gameMap._interpreter;
     };
 
-    // ver1.1.4：プレイヤー座標をイベントキーに紐づけて保持する
     Game_Temp.prototype.hldPlayerPos_Artm = function(id) {
         const pos = [$gamePlayer._realX, $gamePlayer._realY];
         this._playerPos_Artm["" + id] = pos;
     };
 
-    // ver1.1.4：プレイヤー座標をイベントキーから取得する
     Game_Temp.prototype.playerPos_Artm = function(id, flag) {
         const pos = this._playerPos_Artm["" + id] ?? [$gamePlayer._realX, $gamePlayer._realY];
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
-    // ver1.3.0：フキダシ対象バックアップを取得する
     Game_Temp.prototype.backupBalloons_Artm = function() {
         return this._backupBalloons_Artm;
     };
 
-    // ver1.3.2：指定イベントのフキダシ対象バックアップを取得する
     Game_Temp.prototype.backupBalloon_Artm = function(eventId) {
         const balloons = this._backupBalloons_Artm;
         const index = balloons.findIndex(balloon => {
@@ -1260,7 +1254,6 @@
         return index >= 0 ? balloons.splice(index, 1)[0] : null;
     };
 
-    // ver1.3.2：指定イベントのフキダシを再要求する
     Game_Temp.prototype.retryRequestBalloon_Artm = function(eventId) {
         const balloon = this.backupBalloon_Artm(eventId);
         if (balloon) {
@@ -1380,9 +1373,7 @@
                 }
             }, this)
         }
-        // ver1.2.1: 発見状態をクリアする
         event.setFoundStatus(0);
-        // ver1.3.2: 指定イベントのフキダシ対象バックアップをクリアする
         if (DefTrackingResume[0]) {
             $gameTemp.backupBalloon_Artm(eventId);
         }
@@ -1527,8 +1518,6 @@
         if (DefLocationReset[0] &&
             !$gameParty.inBattle() && !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
-             
-        // ver1.1.0：マップID＋イベントIDをキーとして発見状態を保持しておく
         } else if (DefTrackingResume[0]) {
             const baseKey = $gameMap.mapId() + "_";
             $gameMap.events().forEach(event => {
@@ -1603,7 +1592,7 @@
         this._lostDelay = this._lostMaxDelay;
         this._activeMode = 0;
         this._forceLost = 0;
-        this._balloonLoop = 0; // ver1.3.0: 発見時フキダシループ機能
+        this._balloonLoop = 0;
     };
 
     const _Game_CharacterBaseMoveStraight = Game_CharacterBase.prototype.moveStraight;
@@ -1635,7 +1624,6 @@
         _Game_CharacterBaseSetDirection.call(this,d);
     }
 
-    // ver1.3.0: 発見時フキダシループ機能
     const _Game_CharacterBaseEndBalloon = Game_CharacterBase.prototype.endBalloon;
     Game_CharacterBase.prototype.endBalloon = function() {
         _Game_CharacterBaseEndBalloon.call(this);
@@ -1943,7 +1931,6 @@
         return this.getSensorStatus() === 1 && this.getFoundStatus() === 1;
     };
 
-    // ver1.3.0: 発見時フキダシループ機能
     Game_CharacterBase.prototype.setBalloonLoop = function(balloonLoop) {
         this._balloonLoop = balloonLoop;
     };
@@ -1956,7 +1943,6 @@
     // Game_Map
     //  探索開始処理の自動実行を定義します。
     //=========================================================================
-    // ver1.2.0 追跡状態の復元をクリア
     function clearTmpFoundState(key) {
         TmpFoundStateList[key] = null;
         delete TmpFoundStateList[key];
@@ -1968,11 +1954,9 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
-        
-        // ver1.1.0：保持中のマップID＋イベントIDのキーから発見状態を再現する
         const balloons = $gameTemp.backupBalloons_Artm();
         if (!DefTrackingResume[0]) {
-            balloons.length = 0; // ver1.3.2
+            balloons.length = 0;
             return;
         }
         this.events().forEach(event => {
@@ -1981,7 +1965,7 @@
             if (TmpFoundStateList[key]) {
                 this._events[eventId] = TmpFoundStateList[key];
                 clearTmpFoundState(key);
-                $gameTemp.retryRequestBalloon_Artm(eventId); // ver1.3.2
+                $gameTemp.retryRequestBalloon_Artm(eventId);
             }
         }, this);
     };
@@ -1998,7 +1982,6 @@
         if (this.getSensorStatus() === -2) {
             this.setupSensor();
         }
-        // ver1.1.1：イベントが向きを変えずに蟹移動してしまう現象対策
         if (this.getSensorStatus() === 1) {
             this.setDirection(direction);
         }
@@ -2100,7 +2083,6 @@
             } else if (op.match(/^am([0-1]|\x1bs\[(\d+|[a-d])\])$/)) { // 探索続行指定
                 const m = op.match(/^am([0-1]|\x1bs\[(\d+|[a-d])\])$/);
                 obj.setActiveMode(m[1]);
-            // ver1.3.0: 発見時フキダシループ機能
             } else if (op === 'blp') { // フキダシループ指定
                 obj.setBalloonLoop(1);
             }
@@ -2155,7 +2137,6 @@
             this.setFoundStatus(1);
             this.resetFoundDelay();
             this.resetLostDelay();
-            // ver1.3.1: 発見時のウエイト残留対応
             this._waitCount = 0;
             // 発見後スイッチON
             const sw_on = 
@@ -2192,7 +2173,6 @@
         if (delay <= 0 || forceLost) {
             const sensorSwitch = DefSensorSwitch[0];
             const lostSensorSwitch = DefLostSensorSwitch[0];
-            // ver1.2.0 デフォルトマップID or 指定マップID
             const mapId = vMapId ?? $gameMap.mapId();
             const eventId = this.eventId();
             this.setForceLost(0);
@@ -2224,7 +2204,6 @@
                     interpreter.setupReservedCommonEvent();
                 }
             }
-            // ver1.3.2: 指定イベントのフキダシ対象バックアップをクリアする
             if (DefTrackingResume[0]) {
                 $gameTemp.backupBalloon_Artm(eventId);
             }
@@ -2271,7 +2250,6 @@
             case "l": // 直線の探索
                 return this.sensorLine();
             case "f": // 扇範囲の探索
-                // ver1.1.4：プレイヤー座標をイベントキーに紐づけて保持する
                 if (IsRealUnder0_5) {
                     const ret = this.sensorFan();
                     $gameTemp.hldPlayerPos_Artm(this.eventId());
@@ -2487,7 +2465,6 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        // ver1.1.4：プレイヤーの予測判定を行う
                         if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
@@ -2559,7 +2536,6 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        // ver1.1.4：プレイヤーの予測判定を行う
                         if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
@@ -2631,7 +2607,6 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        // ver1.1.4：プレイヤーの予測判定を行う
                         if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
                             return true;
                         }
@@ -2703,7 +2678,6 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        // ver1.1.4：プレイヤーの予測判定を行う
                         if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
                             return true;
                         }
@@ -2713,7 +2687,7 @@
         return false;
     };
 
-    // ver1.1.4：プレイヤーの予測判定を行う
+    // プレイヤーの予測判定を行う
     Game_Event.prototype.testPlayerDestinationFan_Artm = function(formula, pos, isReverse) {
         const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
         const sign = [pos[0] - prevPos[0], pos[1] - prevPos[1]];
@@ -2771,7 +2745,6 @@
         const realX = DefRealRangeX[0];
         const realY = DefRealRangeY[0];
         let pos = [$gamePlayer._realX, $gamePlayer._realY];
-        // ver1.1.4：プレイヤーの予測判定を行う
         if (IsRealUnder0_5 && this.isSensorFound()) {
             const prevPos = $gameTemp.playerPos_Artm(this.eventId(), 0);
             pos = this.testPlayerDestinationSide_Artm(pos, prevPos);
@@ -2817,7 +2790,7 @@
         return false;
     };
 
-    // ver1.1.4：プレイヤーの予測判定を行う(隣接マス探索用）
+    // プレイヤーの予測判定を行う(隣接マス探索用）
     Game_Event.prototype.testPlayerDestinationSide_Artm = function(p1, p2) {
         const real = [DefRealRangeX[0], DefRealRangeY[0]];
         const key = "" + Math.sign(p1[0] - p2[0]) + Math.sign(p1[1] - p2[1]);
@@ -2965,7 +2938,6 @@
                 const sprite = new Sprite_ViewRange(event);
                 this._viewRangeSprites.push(sprite);
                 event.enableCreateRange();
-                // ver1.1.3：二重ループ処理を削除し本ループで処理するように修正
                 this._tilemap.addChild(sprite);
                 this._tilemap.addChild(sprite.spriteSide());
             }
@@ -3709,7 +3681,6 @@
         });
     }
 
-    // ver1.1.4：内部処理を追加
     const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
 
 })();
