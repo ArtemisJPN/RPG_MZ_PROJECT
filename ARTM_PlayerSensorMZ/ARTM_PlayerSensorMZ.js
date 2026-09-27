@@ -1207,12 +1207,28 @@
     Game_Temp.prototype.requestBalloon = function(target, balloonId) {
         _Game_TempRequestBalloon.call(this, target, balloonId);
         if (target.getFoundStatus() === 1 && target.getBalloonLoop() === 1) {
-            const balloon = this._balloonQueue.slice(-1)[0];
-            if (balloon.mapId_Artm === undefined) {
-                balloon.mapId_Artm = $gameMap.mapId();
-            }
-            this._backupBalloons_Artm.push(balloon);
+            this.addBackupBalloon_Artm(target, balloonId);
+        } else {
+            this.removeBackupBalloon_Artm(target, balloonId);
         }
+    };
+
+    Game_Temp.prototype.addBackupBalloon_Artm = function(target, balloonId) {
+        const balloon = this._balloonQueue.slice(-1)[0];
+        if (balloon.mapId_Artm === undefined) {
+            balloon.mapId_Artm = $gameMap.mapId();
+        }
+        this._backupBalloons_Artm.push(balloon);
+    };
+
+    Game_Temp.prototype.removeBackupBalloon_Artm = function(target, balloonId) {
+        const idx = this._backupBalloons_Artm.findIndex(bb => {
+            return (
+                bb.mapId_Artm === $gameMap.mapId() &&
+                bb.target.eventId() === target.eventId()
+            );
+        });
+        if (idx !== -1) this._backupBalloons_Artm.splice(idx, 1);
     };
 
     Game_Temp.prototype.getEventId_Artm = function() {
@@ -1239,11 +1255,11 @@
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
-    Game_Temp.prototype.backupBalloons_Artm = function() {
+    Game_Temp.prototype.getBackupBalloons_Artm = function() {
         return this._backupBalloons_Artm;
     };
 
-    Game_Temp.prototype.backupBalloon_Artm = function(eventId) {
+    Game_Temp.prototype.getBackupBalloon_Artm = function(eventId) {
         const balloons = this._backupBalloons_Artm;
         const index = balloons.findIndex(balloon => {
             return (
@@ -1255,7 +1271,7 @@
     };
 
     Game_Temp.prototype.retryRequestBalloon_Artm = function(eventId) {
-        const balloon = this.backupBalloon_Artm(eventId);
+        const balloon = this.getBackupBalloon_Artm(eventId);
         if (balloon) {
             this.requestBalloon(balloon.target, balloon.balloonId);
         }
@@ -1374,7 +1390,7 @@
             }, this)
         }
         if (DefTrackingResume[0]) {
-            $gameTemp.backupBalloon_Artm(eventId);
+            $gameTemp.getBackupBalloon_Artm(eventId);
         }
     };
 
@@ -1627,7 +1643,7 @@
     Game_CharacterBase.prototype.endBalloon = function() {
         _Game_CharacterBaseEndBalloon.call(this);
         if (this.getBalloonLoop() === 1) {
-           if ($gameTemp.backupBalloons_Artm().length > 0) {
+           if ($gameTemp.getBackupBalloons_Artm().length > 0) {
                $gameTemp.retryRequestBalloon_Artm(this.eventId());
            }
         }
@@ -1953,7 +1969,7 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
-        const balloons = $gameTemp.backupBalloons_Artm();
+        const balloons = $gameTemp.getBackupBalloons_Artm();
         if (!DefTrackingResume[0]) {
             balloons.length = 0;
             return;
@@ -2204,7 +2220,7 @@
                 }
             }
             if (DefTrackingResume[0]) {
-                $gameTemp.backupBalloon_Artm(eventId);
+                $gameTemp.getBackupBalloon_Artm(eventId);
             }
         } else {
             this.setLostDelay(delay - 1);
