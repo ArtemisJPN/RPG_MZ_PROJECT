@@ -4,6 +4,7 @@
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // -------------
+// 1.3.5 追跡状態の復元機能のAIレビュー指摘対応
 // 1.3.4 発見時フキダシループ機能のAIレビュー指摘対応
 // 1.3.3 v1.2.1を修正前にロールバック（修正不要なため）
 // 1.3.2 発見時フキダシループ機能の不備を修正
@@ -1072,7 +1073,7 @@
         DefRealRangeX, DefRealRangeY, DefLostSensorSwitch, DefFoundBallon, DefFoundCommon,
         DefFoundDelay, DefFoundSe, DefLostBallon, DefLostCommon, DefLostDelay, DefLostSe,
         DefRangePosition, DefTrackingPriority, DefFollowerThrough, DefLocationReset, DefTrackingResume,
-        TmpFoundStateList = {}, IsRealUnder0_5;
+        IsRealUnder0_5;
     DefSensorSwitch = CheckParam("switch", "Sensor_Switch", Parameters["Sensor_Switch"], "D");
     DefLostSensorSwitch = CheckParam("switch", "Lost_Sensor_Switch", Parameters["Lost_Sensor_Switch"]);
     DefBothSensor = CheckParam("bool", "Both_Sensor", Parameters["Both_Sensor"], false);
@@ -1180,16 +1181,12 @@
 
     // 対象探索者をプレイヤーの位置付近まで移動
     PluginManager.registerCommand(PNAME, "t_move", args => {
-        $gameMap._interpreter.moveNearPlayer(args[0]);
+        $gameTemp.getInterpreter_Artm().moveNearPlayer(args[0]);
     });
 
     // 追跡状態の復元用データクリア
     PluginManager.registerCommand(PNAME, "resume_clear", args => {
-        for (const key in TmpFoundStateList) {
-            TmpFoundStateList[key].lostPlayer(1, key.split("_")[0]);
-            clearTmpFoundState(key);
-        }
-        $gameTemp.clearBackupBalloons_Artm();
+        $gameSystem.clearTrackingResume_Artm();
     });
 
     //=========================================================================
@@ -1221,18 +1218,20 @@
         this.removeBackupBalloon_Artm(target);
         const balloon = this._balloonQueue.slice(-1)[0];
         if (balloon) {
-            if (balloon.mapId_Artm === undefined) {
-                balloon.mapId_Artm = $gameMap.mapId();
-            }
-            this._backupBalloons_Artm.push(balloon);
+            this._backupBalloons_Artm.push({
+                mapId_Artm: $gameMap.mapId(),
+                eventId_Artm: target.eventId(),
+                balloonId: balloon.balloonId
+            });
         }
     };
 
     Game_Temp.prototype.removeBackupBalloon_Artm = function(target) {
+        const targetEventId = target.eventId();
         const idx = this._backupBalloons_Artm.findIndex(bb => {
             return (
                 bb.mapId_Artm === $gameMap.mapId() &&
-                bb.target.eventId() === target.eventId()
+                bb.eventId_Artm === targetEventId
             );
         });
         if (idx !== -1) this._backupBalloons_Artm.splice(idx, 1);
@@ -1283,7 +1282,7 @@
         const index = balloons.findIndex(balloon => {
             return (
                 balloon.mapId_Artm === $gameMap.mapId() &&
-                balloon.target.eventId() === eventId
+                balloon.eventId_Artm === eventId
             );
         });
         return index >= 0 ? balloons.splice(index, 1)[0] : null;
@@ -1292,7 +1291,40 @@
     Game_Temp.prototype.retryRequestBalloon_Artm = function(eventId) {
         const balloon = this.getBackupBalloon_Artm(eventId);
         if (balloon) {
-            this.requestBalloon(balloon.target, balloon.balloonId);
+            const event = $gameMap.event(balloon.eventId_Artm);
+            if (event) {
+                this.requestBalloon(event, balloon.balloonId);
+            }
+        }
+    };
+
+    //=========================================================================
+    // Scene_Map
+    //  マップ遷移完了時にバックアップされたフキダシを復元
+    //=========================================================================
+    const _Scene_Map_start = Scene_Map.prototype.start;
+    Scene_Map.prototype.start = function() {
+        _Scene_Map_start.call(this);
+        if (CEC(DefTrackingResume)) {
+            const balloons = $gameTemp.getBackupBalloons_Artm();
+            const currentMapId = $gameMap.mapId();
+            for (let i = balloons.length - 1; i >= 0; i--) {
+                const bData = balloons[i];
+                if (bData.mapId_Artm === currentMapId) {
+                    balloons.splice(i, 1);
+                    const event = $gameMap.event(bData.eventId_Artm);
+                    if (event) {
+                        $gameTemp.requestBalloon(event, bData.balloonId);
+                    }
+                }
+            }
+            $gameMap.events().forEach(event => {
+                if (event.isSensorFound() && event.getBalloonLoop() === 1) {
+                    if (event._foundBallon > 0 && !event.isBalloonPlaying()) {
+                        $gameTemp.requestBalloon(event, event._foundBallon);
+                    }
+                }
+            });
         }
     };
 
@@ -1350,6 +1382,7 @@
         _Game_System_initialize.call(this);
         this._sensorStart = false
         this._switchStatuses  = {};
+        this._trackingResume_Artm = {};
     };
 
     Game_System.prototype.startSensor = function(type) {
@@ -1410,7 +1443,7 @@
                 }
             }, this)
         }
-        if (DefTrackingResume[0]) {
+        if (CEC(DefTrackingResume)) {
             $gameTemp.getBackupBalloon_Artm(eventId);
         }
     };
@@ -1544,6 +1577,39 @@
         }
     };
 
+    Game_System.prototype.getTrackingResume_Artm = function() {
+        if (!this._trackingResume_Artm) {
+            this._trackingResume_Artm = {};
+        }
+        return this._trackingResume_Artm;
+    };
+
+    Game_System.prototype.clearTrackingResume_Artm = function() {
+        const trackingResume = this.getTrackingResume_Artm();
+        if (trackingResume) {
+            for (const key in trackingResume) {
+                const parts = key.split("_");
+                const mapId = parseInt(parts[0], 10);
+                const eventId = parseInt(parts[1], 10);
+                if (mapId === $gameMap.mapId()) {
+                    const event = $gameMap.event(eventId);
+                    if (event) event.lostPlayer(true);
+                } else {
+                    const sensorSwitch = DefSensorSwitch[0];
+                    if (isFinite(sensorSwitch)) {
+                        $gameSwitches.setValue(parseInt(sensorSwitch, 10), false);
+                    } else if (sensorSwitch.match(/[a-dA-D]/)) {
+                        $gameSelfSwitches.setValue(
+                            [mapId, eventId, sensorSwitch.toUpperCase()], false
+                        );
+                    }
+                }
+                delete trackingResume[key];
+            }
+        }
+        $gameTemp.clearBackupBalloons_Artm();
+    };
+
     //=========================================================================
     // Game_Player
     //  場所移動を行った際に追跡状態をリセットする処理を定義します。
@@ -1551,19 +1617,34 @@
     //=========================================================================
     const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
     Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
-        if (DefLocationReset[0] &&
+        if (CEC(DefLocationReset) &&
             !$gameParty.inBattle() && !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
-        } else if (DefTrackingResume[0]) {
-            const baseKey = $gameMap.mapId() + "_";
-            $gameMap.events().forEach(event => {
-              if (event.isSensorFound()) {
-                TmpFoundStateList[baseKey + event.event().id] = event;
-              }
-            });
+        } else if (CEC(DefTrackingResume)) {
+            // 追跡状態の保存を行う
+            this.saveTrackingResume_Artm(mapId);
         }
         _Game_Player_reserveTransfer.apply(this, arguments);
     };
+    
+    Game_Player.prototype.saveTrackingResume_Artm = function(mapId) {
+        if ($gameMap.mapId() !== mapId) {
+            const currentMapId = $gameMap.mapId();
+            const trackingResume = $gameSystem.getTrackingResume_Artm();
+            $gameMap.events().forEach(event => {
+                if (event.isSensorFound()) {
+                    const key = currentMapId + "_" + event.eventId();
+                    trackingResume[key] = {
+                        foundStatus: event.getFoundStatus(),
+                        sensorStatus: event.getSensorStatus(),
+                        foundDelay: event.getFoundDelay(),
+                        lostDelay: event.getLostDelay()
+                    };
+                }
+            });
+        }
+    };
+
 
     //=========================================================================
     // Game_CharacterBase
@@ -1979,28 +2060,30 @@
     // Game_Map
     //  探索開始処理の自動実行を定義します。
     //=========================================================================
-    function clearTmpFoundState(key) {
-        TmpFoundStateList[key] = null;
-        delete TmpFoundStateList[key];
-    }
-
     const _Game_Map_setupEvents = Game_Map.prototype.setupEvents;
     Game_Map.prototype.setupEvents = function() {
         _Game_Map_setupEvents.call(this);
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
-        if (!DefTrackingResume[0]) {
+        if (!CEC(DefTrackingResume)) {
             $gameTemp.clearBackupBalloons_Artm();
             return;
         }
+        // 追跡状態の復元を行う
+        const resumeData = $gameSystem.getTrackingResume_Artm();
+        if (!resumeData) return;
         this.events().forEach(event => {
-            const eventId = event.event().id;
+            const eventId = event.eventId();
             const key = this.mapId() + "_" + eventId;
-            if (TmpFoundStateList[key]) {
-                this._events[eventId] = TmpFoundStateList[key];
-                clearTmpFoundState(key);
-                $gameTemp.retryRequestBalloon_Artm(eventId);
+            if (resumeData[key]) {
+                const data = resumeData[key];
+                event.setSensorStatus(data.sensorStatus);
+                event.setFoundStatus(data.foundStatus);
+                event.setFoundDelay(data.foundDelay);
+                event.setLostDelay(data.lostDelay);
+                event.setViewRangeStatus(2);
+                delete resumeData[key];
             }
         }, this);
     };
