@@ -1198,55 +1198,6 @@
         _Game_Temp_initialize.call(this);
         this._eventId_Artm = 0;
         this._playerPos_Artm = {};
-        this._backupBalloons_Artm = [];
-    };
-
-    const _Game_TempRequestBalloon = Game_Temp.prototype.requestBalloon;
-    Game_Temp.prototype.requestBalloon = function(target, balloonId) {
-        _Game_TempRequestBalloon.call(this, target, balloonId);
-        if (typeof target.getFoundStatus !== "function") {
-            return;
-        }
-        if (target.getFoundStatus() === 1 && target.getBalloonLoop() === 1) {
-            this.addBackupBalloon_Artm(target);
-        } else if (typeof target.getFoundStatus === "function") {
-            this.removeBackupBalloon_Artm(target);
-        }
-    };
-
-    Game_Temp.prototype.addBackupBalloon_Artm = function(target) {
-        this.removeBackupBalloon_Artm(target);
-        const balloon = this._balloonQueue.slice(-1)[0];
-        if (balloon) {
-            this._backupBalloons_Artm.push({
-                mapId_Artm: $gameMap.mapId(),
-                eventId_Artm: target.eventId(),
-                balloonId: balloon.balloonId
-            });
-        }
-    };
-
-    Game_Temp.prototype.removeBackupBalloon_Artm = function(target) {
-        const targetEventId = target.eventId();
-        const idx = this._backupBalloons_Artm.findIndex(bb => {
-            return (
-                bb.mapId_Artm === $gameMap.mapId() &&
-                bb.eventId_Artm === targetEventId
-            );
-        });
-        if (idx !== -1) this._backupBalloons_Artm.splice(idx, 1);
-    };
-
-    Game_Temp.prototype.clearBackupBalloons_Artm = function(mapId) {
-        if (mapId) {
-            for (let i = this._backupBalloons_Artm.length - 1; i >= 0; i--) {
-                if (this._backupBalloons_Artm[i].mapId_Artm === mapId) {
-                    this._backupBalloons_Artm.splice(i, 1);
-                }
-            }
-        } else {
-            this._backupBalloons_Artm.length = 0;
-        }
     };
 
     Game_Temp.prototype.getEventId_Artm = function() {
@@ -1273,60 +1224,26 @@
         return flag ? [pos[1], pos[0]] : pos; // 反転フラグ"1"ならXYを入れ替え
     };
 
-    Game_Temp.prototype.getBackupBalloons_Artm = function() {
-        return this._backupBalloons_Artm;
-    };
-
-    Game_Temp.prototype.getBackupBalloon_Artm = function(eventId) {
-        const balloons = this._backupBalloons_Artm;
-        const index = balloons.findIndex(balloon => {
-            return (
-                balloon.mapId_Artm === $gameMap.mapId() &&
-                balloon.eventId_Artm === eventId
-            );
-        });
-        return index >= 0 ? balloons.splice(index, 1)[0] : null;
-    };
-
-    Game_Temp.prototype.retryRequestBalloon_Artm = function(eventId) {
-        const balloon = this.getBackupBalloon_Artm(eventId);
-        if (balloon) {
-            const event = $gameMap.event(balloon.eventId_Artm);
-            if (event) {
-                this.requestBalloon(event, balloon.balloonId);
-            }
-        }
-    };
-
     //=========================================================================
     // Scene_Map
     //  マップ遷移完了時にバックアップされたフキダシを復元
     //=========================================================================
     const _Scene_Map_start = Scene_Map.prototype.start;
-    Scene_Map.prototype.start = function() {
-        _Scene_Map_start.call(this);
-        if (CEC(DefTrackingResume)) {
-            const balloons = $gameTemp.getBackupBalloons_Artm();
-            const currentMapId = $gameMap.mapId();
-            for (let i = balloons.length - 1; i >= 0; i--) {
-                const bData = balloons[i];
-                if (bData.mapId_Artm === currentMapId) {
-                    balloons.splice(i, 1);
-                    const event = $gameMap.event(bData.eventId_Artm);
-                    if (event) {
-                        $gameTemp.requestBalloon(event, bData.balloonId);
-                    }
-                }
-            }
+        Scene_Map.prototype.start = function() {
+            _Scene_Map_start.call(this);
             $gameMap.events().forEach(event => {
-                if (event.isSensorFound() && event.getBalloonLoop() === 1) {
-                    if (event._foundBallon > 0 && !event.isBalloonPlaying()) {
-                        $gameTemp.requestBalloon(event, event._foundBallon);
+                if (event.getSensorType() !== null) {
+                    event.setupSensor();
+                    if (event.isSensorFound() && event.getBalloonLoop() === 1) {
+                        const balloonId = event.getFoundBallon();
+                        if (balloonId > 0) {
+                            event._balloonPlaying = false;
+                            $gameTemp.requestBalloon(event, balloonId);
+                        }
                     }
                 }
             });
-        }
-    };
+        };
 
     //=========================================================================
     // Game_Interpreter
@@ -1395,7 +1312,6 @@
         this.setSensorStart(false);
         this.setSensorStatusAll(0);
         this.setViewRangeStatusAll(0);
-        $gameTemp.clearBackupBalloons_Artm($gameMap.mapId());
     };
 
     Game_System.prototype.resetSensor = function(args) {
@@ -1418,7 +1334,6 @@
         if (event && event.getSensorType() !== null) {
             event.setSensorStatus(0);
             event.setFoundStatus(0);
-            $gameTemp.removeBackupBalloon_Artm(event);
         }
     };
 
@@ -1442,9 +1357,6 @@
                     ], false);
                 }
             }, this)
-        }
-        if (CEC(DefTrackingResume)) {
-            $gameTemp.getBackupBalloon_Artm(eventId);
         }
     };
 
@@ -1607,7 +1519,6 @@
                 delete trackingResume[key];
             }
         }
-        $gameTemp.clearBackupBalloons_Artm();
     };
 
     //=========================================================================
@@ -1635,16 +1546,15 @@
                 if (event.isSensorFound()) {
                     const key = currentMapId + "_" + event.eventId();
                     trackingResume[key] = {
-                        foundStatus: event.getFoundStatus(),
-                        sensorStatus: event.getSensorStatus(),
-                        foundDelay: event.getFoundDelay(),
-                        lostDelay: event.getLostDelay()
+                        found: true,
+                        x: event.x,
+                        y: event.y,
+                        d: event.direction()
                     };
                 }
             });
         }
     };
-
 
     //=========================================================================
     // Game_CharacterBase
@@ -1745,9 +1655,7 @@
     Game_CharacterBase.prototype.endBalloon = function() {
         _Game_CharacterBaseEndBalloon.call(this);
         if (this.getBalloonLoop() === 1 && this.isSensorFound()) {
-           if ($gameTemp.getBackupBalloons_Artm().length > 0) {
-               $gameTemp.retryRequestBalloon_Artm(this.eventId());
-           }
+            $gameTemp.requestBalloon(this, this.getFoundBallon());
         }
     };
     Game_CharacterBase.prototype.startViewRange = function() {
@@ -2066,26 +1974,28 @@
         if (DefAutoSensor[0]) {
             $gameSystem.startSensor();
         }
-        if (!CEC(DefTrackingResume)) {
-            $gameTemp.clearBackupBalloons_Artm();
-            return;
-        }
         // 追跡状態の復元を行う
-        const resumeData = $gameSystem.getTrackingResume_Artm();
-        if (!resumeData) return;
-        this.events().forEach(event => {
-            const eventId = event.eventId();
-            const key = this.mapId() + "_" + eventId;
-            if (resumeData[key]) {
+        if (CEC(DefTrackingResume)) {
+            const resumeData = $gameSystem.getTrackingResume_Artm();
+            if (!resumeData) return;
+            this.events().forEach(event => {
+                const eventId = event.eventId();
+                const key = this.mapId() + "_" + eventId;
                 const data = resumeData[key];
-                event.setSensorStatus(data.sensorStatus);
-                event.setFoundStatus(data.foundStatus);
-                event.setFoundDelay(data.foundDelay);
-                event.setLostDelay(data.lostDelay);
-                event.setViewRangeStatus(2);
-                delete resumeData[key];
-            }
-        }, this);
+                if (data) {
+                    if (typeof data === "object") {
+                        event.locate(data.x, data.y);
+                        event.setDirection(data.direction);
+                    }
+                    event.setSensorStatus(1);
+                    event.setFoundStatus(1);
+                    event.setFoundDelay(0);
+                    event.resetLostDelay();
+                    event.setViewRangeStatus(2);
+                    delete resumeData[key];
+                }
+            }, this);
+        }
     };
 
     //=========================================================================
@@ -2234,7 +2144,6 @@
                  this.lostPlayer();
                  if (this.getFoundDelay() < this.getFoundMaxDelay()) {
                      this.resetFoundDelay();
-                     this.setForceLost(0);
                  }
              } else {
                  if (this.getFoundDelay() < this.getFoundMaxDelay()) {
@@ -2297,7 +2206,6 @@
             this.setFoundStatus(0);
             this.resetLostDelay();
             this.resetFoundDelay();
-            $gameTemp.removeBackupBalloon_Artm(this);
             // 発見後スイッチOFF
             const sw_off = 
                 this.getSensorSwitch() !== null ?
@@ -2985,7 +2893,6 @@
         this.setSensorStatus(0);
         this.setFoundStatus(0);
         this.setViewRangeStatus(0);
-        $gameTemp.removeBackupBalloon_Artm(this);
         _Game_Event_erase.call(this);
     };
 
