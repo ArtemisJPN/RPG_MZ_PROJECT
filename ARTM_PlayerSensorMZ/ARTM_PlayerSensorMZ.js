@@ -2812,7 +2812,7 @@
         return false;
     };
 
-    // プレイヤーの予測判定を行う(隣接マス探索用）
+    // プレイヤーの予測判定を行う
     Game_Event.prototype.predictPlayerDestination_Artm = function(pos, isReverse) {
         const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
         const sx = Math.sign(pos[0] - prevPos[0]);
@@ -3701,6 +3701,7 @@
         });
     }
 
+    // 小数誤差対策
     const flrDec = (value => IsRealUnder0_5 ? parseFloat(value.toFixed(4)) : value);
 
 })();
