@@ -4,6 +4,7 @@
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // -------------
+// 1.3.6 既存機能のAIレビュー指摘対応
 // 1.3.5 追跡状態の復元機能のAIレビュー指摘対応
 // 1.3.4 発見時フキダシループ機能のAIレビュー指摘対応
 // 1.3.3 v1.2.1を修正前にロールバック（修正不要なため）
@@ -976,20 +977,21 @@
 
     function CEC_string(text, def, min, max) {
         if (text === "") {
-            return def !== "" ? def : value;
+            return def !== "" ? def : text;
         } else {
             return text;
         }
     }
 
     function CEC_switch(text, def, min, max) {
-        if (value === "") {
-            return def !== "" ? def : value;
+        if (text === "") {
+            return def !== "" ? def : "";
         }
-        if (!value.match(/^([A-D]|\d+)$/)) {
+        if (!text.match(/^([A-D]|\d+)$/)) {
             const msbErr = "Plugin parameter value is not switch : ";
-            throw new Error(msbErr + value);
+            throw new Error(msbErr + text);
         }
+        return text;
     }
 
     const convertEscapeCharacters = function(text) {
@@ -1085,30 +1087,32 @@
     DefAutoSensor = CheckParam("bool", "Auto_Sensor", Parameters["Auto_Sensor"], false);
     DefEventDecision = CheckParam("bool", "Event_Decision", Parameters["Event_Decision"], false);
     DefRegionDecisions = [];
-    Parameters["Region_Decision"].forEach(function(region) {
+    (Parameters["Region_Decision"] || []).forEach(function(region) {
         DefRegionDecisions.push(CheckParam("string", "Region_Decision", region, 0));
     });
     DefRealRangeX = CheckParam("float", "Real_Range_X", Parameters["Real_Range_X"], 0.000, 0.000, 0.999);
     DefRealRangeY = CheckParam("float", "Real_Range_Y", Parameters["Real_Range_Y"], 0.000, 0.000, 0.999);
     IsRealUnder0_5 = DefRealRangeX[0] < 0.5 || DefRealRangeY[0] < 0.5;
-    DefFoundBallon = CheckParam("num", "Player_Found.Ballon", Parameters["Player_Found"]["Ballon"], 0, 0);
-    DefFoundCommon = CheckParam("num", "Player_Found.Common_Event", Parameters["Player_Found"]["Common_Event"], 0, 0);
-    DefFoundDelay = CheckParam("num", "Player_Found.Delay", Parameters["Player_Found"]["Delay"], 0, 0);
+
+    DefFoundBallon = CheckParam("num", "Player_Found.Ballon", (Parameters["Player_Found"] || {})["Ballon"], 0, 0);
+    DefFoundCommon = CheckParam("num", "Player_Found.Common_Event", (Parameters["Player_Found"] || {})["Common_Event"], 0, 0);
+    DefFoundDelay = CheckParam("num", "Player_Found.Delay", (Parameters["Player_Found"] || {})["Delay"], 0, 0);
     DefFoundSe = {
-        "name" : CheckParam("string", "Player_Found.Se.Name", Parameters["Player_Found"]["Se"]["Name"], "")[0],
-        "volume" : CheckParam("num", "Player_Found.Se.Volume", Parameters["Player_Found"]["Se"]["Volume"], 90, 0, 100)[0],
-        "pitch" : CheckParam("num", "Player_Found.Se.Pitch", Parameters["Player_Found"]["Se"]["Pitch"], 100, 50, 150)[0],
-        "pan" : CheckParam("num", "Player_Found.Se.Pan", Parameters["Player_Found"]["Se"]["Pan"], 0, -100, 100)[0],
-    }
-    DefLostBallon = CheckParam("num", "Player_Lost.Ballon", Parameters["Player_Lost"]["Ballon"], 0, 0);
-    DefLostCommon = CheckParam("num", "Player_Lost.Common_Event", Parameters["Player_Lost"]["Common_Event"], 0, 0);
-    DefLostDelay = CheckParam("num", "Player_Lost.Delay", Parameters["Player_Lost"]["Delay"], 0, 0);
+        "name" : CheckParam("string", "Player_Found.Se.Name", ((Parameters["Player_Found"] || {})["Se"] || {})["Name"], "")[0],
+        "volume" : CheckParam("num", "Player_Found.Se.Volume", ((Parameters["Player_Found"] || {})["Se"] || {})["Volume"], 90, 0, 100)[0],
+        "pitch" : CheckParam("num", "Player_Found.Se.Pitch", ((Parameters["Player_Found"] || {})["Se"] || {})["Pitch"], 100, 50, 150)[0],
+        "pan" : CheckParam("num", "Player_Found.Se.Pan", ((Parameters["Player_Found"] || {})["Se"] || {})["Pan"], 0, -100, 100)[0],
+    };
+    DefLostBallon = CheckParam("num", "Player_Lost.Ballon", (Parameters["Player_Lost"] || {})["Ballon"], 0, 0);
+    DefLostCommon = CheckParam("num", "Player_Lost.Common_Event", (Parameters["Player_Lost"] || {})["Common_Event"], 0, 0);
+    DefLostDelay = CheckParam("num", "Player_Lost.Delay", (Parameters["Player_Lost"] || {})["Delay"], 0, 0);
     DefLostSe = {
-        "name" : CheckParam("string", "Player_Lost.Se.Name", Parameters["Player_Lost"]["Se"]["Name"], "")[0],
-        "volume" : CheckParam("num", "Player_Lost.Se.Volume", Parameters["Player_Lost"]["Se"]["Volume"], 90, 0, 100)[0],
-        "pitch" : CheckParam("num", "Player_Lost.Se.Pitch", Parameters["Player_Lost"]["Se"]["Pitch"], 100, 50, 150)[0],
-        "pan" : CheckParam("num", "Player_Lost.Se.Pan", Parameters["Player_Lost"]["Se"]["Pan"], 0, -100, 100)[0],
-    }
+        "name" : CheckParam("string", "Player_Lost.Se.Name", ((Parameters["Player_Lost"] || {})["Se"] || {})["Name"], "")[0],
+        "volume" : CheckParam("num", "Player_Lost.Se.Volume", ((Parameters["Player_Lost"] || {})["Se"] || {})["Volume"], 90, 0, 100)[0],
+        "pitch" : CheckParam("num", "Player_Lost.Se.Pitch", ((Parameters["Player_Lost"] || {})["Se"] || {})["Pitch"], 100, 50, 150)[0],
+        "pan" : CheckParam("num", "Player_Lost.Se.Pan", ((Parameters["Player_Lost"] || {})["Se"] || {})["Pan"], 0, -100, 100)[0],
+    };
+
     DefTrackingPriority = CheckParam("bool", "Tracking_Priority", Parameters["Tracking_Priority"], false);
     DefFollowerThrough = CheckParam("bool", "Follower_Through", Parameters["Follower_Through"], false);
     DefLocationReset = CheckParam("bool", "Location_Reset", Parameters["Location_Reset"], false);
@@ -1181,7 +1185,7 @@
 
     // 対象探索者をプレイヤーの位置付近まで移動
     PluginManager.registerCommand(PNAME, "t_move", args => {
-        $gameTemp.getInterpreter_Artm().moveNearPlayer(args[0]);
+        $gameTemp.getInterpreter_Artm().moveNearPlayer(args.speed);
     });
 
     // 追跡状態の復元用データクリア
@@ -1341,7 +1345,7 @@
         const mapId = $gameMap.mapId();
         const event = $gameMap.event(eventId);
         const switches = args && args.length >= 2 ? args.slice(1) : [];
-        sensorSwitch = DefSensorSwitch[0];
+        const sensorSwitch = DefSensorSwitch[0];
         if (!event) return;
         if (event.getSensorType() !== null) {
             const sw =
@@ -1941,7 +1945,7 @@
     };
 
     Game_CharacterBase.prototype.getActiveMode = function() {
-        return parseInt(ConvSw(this._activeMode, this), 10);;
+        return parseInt(ConvSw(this._activeMode, this), 10);
     };
 
     Game_CharacterBase.prototype.setForceLost = function(forceLost) {
@@ -1985,7 +1989,7 @@
                 if (data) {
                     if (typeof data === "object") {
                         event.locate(data.x, data.y);
-                        event.setDirection(data.direction);
+                        event.setDirection(data.d);
                     }
                     event.setSensorStatus(1);
                     event.setFoundStatus(1);
@@ -2019,13 +2023,12 @@
         const pattern = /<(.?)(?:psensor)(l|f|s|d)?(?:\:)(\\v\[\d+\]|\d+)([ 0-9a-z\[\]\\]*)?>/i
         const event = this.event();
         if (!event.note) return;
-        note = event.note.toLowerCase();
-        note = note.split(/ (?=<)/);
-        cnt = note.length;
+        const note = event.note.toLowerCase().split(/ (?=<)/);
+        const cnt = note.length;
         for (let i = 0;i < cnt;i++) {
             const n = note[i].trim();
             if (n.match(pattern)) {
-                match = n.match(pattern);
+                const match = n.match(pattern);
                 if (match[1] && match[1] === "!") { // 探索一時無効
                     this.setSensorStatus(-1);
                 }
@@ -2041,7 +2044,7 @@
                         break;
                 }
                 if (match[3]) { // 探索対象マス数
-                    value = String(match[3]);
+                    let value = String(match[3]);
                     value = value.replace(/\\/g, '\x1b');
                     value = value.replace(/\x1b\x1b/g, '\\');
                     if (this.getSensorType() === "df" &&
@@ -2053,7 +2056,7 @@
                     this.setSensorRangeC(value);
                 }
                 if (match[4]) { // オプション
-                    options = match[4].trim().split(" ");
+                    const options = match[4].trim().split(" ");
                     setupSensor_option(this, options);
                 }
             }
@@ -2245,7 +2248,7 @@
                 $gameSwitches.setValue(sw, true);
             }
         } else if (sw.match(/[a-dA-D]/)) {
-            key = [mapId, eventId, sw.toUpperCase()];
+            const key = [mapId, eventId, sw.toUpperCase()];
             if (!$gameSelfSwitches.value(key)) {
                 $gameSelfSwitches.setValue(key, true);
             }
@@ -2262,7 +2265,7 @@
                 $gameSwitches.setValue(sw, false);
             }
         } else if (sw.match(/[a-dA-D]/)) {
-            key = [mapId, eventId, sw.toUpperCase()];
+            const key = [mapId, eventId, sw.toUpperCase()];
             if ($gameSelfSwitches.value(key)) {
                 $gameSelfSwitches.setValue(key, false);
             }
@@ -2318,7 +2321,7 @@
                 coordinates = this.getCoordinate();
                 cnt = coordinates.length;
                 if (cnt === 1) {
-                    i = 0;
+                    const i = 0;
                     if (coordinates[i][0] !== 0 || coordinates[i][1] !== 0) {
                         if (px >= ex + coordinates[i][0] - realX && 
                             px <= ex + coordinates[i][0] + realX &&
@@ -2342,7 +2345,7 @@
                 coordinates = this.getCoordinate();
                 cnt = coordinates.length;
                 if (cnt === 1) {
-                    i = 0;
+                    const i = 0;
                     if (coordinates[i][0] !== 0 || coordinates[i][1] !== 0) {
                         if (py >= ey + coordinates[i][1] - realY &&
                             py <= ey + coordinates[i][1] + realY &&
@@ -2366,7 +2369,7 @@
                 coordinates = this.getCoordinate();
                 cnt = coordinates.length;
                 if (cnt === 1) {
-                    i = 0;
+                    const i = 0;
                     if (coordinates[i][0] !== 0 || coordinates[i][1] !== 0) {
                         if (py <= ey + coordinates[i][1] + realY &&
                             py >= ey + coordinates[i][1] - realY &&
@@ -2390,7 +2393,7 @@
                 coordinates = this.getCoordinate();
                 cnt = coordinates.length;
                 if (cnt === 1) {
-                    i = 0;
+                    const i = 0;
                     if (coordinates[i][0] !== 0 || coordinates[i][1] !== 0) {
                         if (px >= ex + coordinates[i][0] - realX &&
                             px <= ex + coordinates[i][0] + realX &&
@@ -2721,7 +2724,7 @@
             (pos[0] >= formula[0]) && (pos[0] <= formula[0]) &&
             (pos[1] >= formula[1]) && (pos[1] <= formula[2])
         );
-    }
+    };
 
     // 菱形範囲の探索(地形考慮完全無視)
     Game_Event.prototype.sensorDiamond = function() {
@@ -2837,11 +2840,12 @@
         const terrainDecision = CEC(DefTerrainDecision);
         const ex = this.x;
         const ey = this.y;
+        let cx, cy, sx, sy;
         let obstacle, status;
         obstacle = -1;
         status = "Last";
         // 正面探索
-        for (j = 0; j <= cnt; j++) {
+        for (let j = 0; j <= cnt; j++) {
             cx = rx + j * signX;
             cy = ry + j * signY;
             if (this.getTerrainDecision() === 1
@@ -3016,29 +3020,27 @@
         const rangeVisible = this._character.getRangeVisible();
         const defVisible = ConvSw(DefRangeVisible[0]);
         if (this._character && this._character._erased) {
-            this.parent.removeChild(this._spriteSide);
+            if (this._spriteSide) {
+                if (this._spriteSide.bitmap) this._spriteSide.bitmap.destroy();
+                this.parent.removeChild(this._spriteSide);
+            }
+            if (this.bitmap) this.bitmap.destroy();
             this.parent.removeChild(this);
+            return;
         }
         if (this._character &&
             !this._character._erased &&
             sensorStatus === 1 && (rangeVisible === 1 ||
             (rangeVisible === -1 && defVisible))) {
              this.updatePosition();
+             this._coordinate = this._character.getCoordinate();
              if (this.bitmap) {
                  if (rangeStatus === 1) {
-                     // 描画更新
-                     if (this._coordinate.length === 0) {
-                         this._coordinate = this._character.getCoordinate();
-                     }
                      this.updateBitmap();
                  } else if (rangeStatus === 2) {
-                     // 描画新規
-                     this._coordinate = this._character.getCoordinate();
                      this.createBitmap();
                  }
              } else {
-                 // 描画新規
-                 this._coordinate = this._character.getCoordinate();
                  this.createBitmap();
              }
             this.visible = true;
@@ -3150,16 +3152,19 @@
         const sensorRange = this._character.getSensorRange();
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
-        const tmpCoordinate =  this._coordinate;
+        const tmpCoordinate = this._coordinate || [];
         const coordinate = this._character.getCoordinate();
-        const cnt = tmpCoordinate.length < coordinate.length ? tmpCoordinate.length : coordinate.length;
-        color = DefRangeColor[0];
-        opacity = DefRangeOpacity[0];
-        bias =
-            bothSensor ? 3 :
-            this._character.getBothSensor() > 0 ? 3 : 1;
+        const cnt = Math.min(tmpCoordinate.length, coordinate.length);
+        const color = DefRangeColor[0];
+        const opacity = DefRangeOpacity[0];
+        const bias = bothSensor ? 3 : (this._character.getBothSensor() > 0 ? 3 : 1);
+        let isChanged = false;
+        if (tmpCoordinate.length !== coordinate.length) {
+            isChanged = true;
+        }
         for (let i = 0; i < cnt; i++) {
-            if (coordinate[i][0] !==tmpCoordinate[i][0] || coordinate[i][1] !== tmpCoordinate[i][1]) {
+            if (coordinate[i][0] !== tmpCoordinate[i][0] || coordinate[i][1] !== tmpCoordinate[i][1]) {
+                isChanged = true;
                 if (tmpCoordinate[i][3] === -1) {
                     tmpCoordinate[i][3] = $gameMap.tileWidth();
                 } else if (tmpCoordinate[i][3] !== 0) {
@@ -3169,6 +3174,8 @@
                 coordinate[i][3] = 0;
             }
         }
+        let width = 0;
+        let height = 0;
         switch(sensorType) {
             case "l":
                 if (direction === DIR_UP) {
@@ -3488,7 +3495,7 @@
                 cx = width - tileWidth / 2;
                 cy = height / 2;
                 distanceX = width - Math.abs(coordinates[0][num]) * tileWidth;
-                distanceX -= tileWidth/ 2;
+                distanceX -= tileWidth / 2;
                 distanceY = cy - tileHeight;
                 this.drawLineSide_Artm(contextSide, [sideSensorL, sideSensorR, 4]);
                 this.drawLine_Artm(context, cx, cy, distanceX, distanceY);
@@ -3547,7 +3554,7 @@
         const width = this.width;
         const tileWidth = $gameMap.tileWidth();
         const tileHeight = $gameMap.tileHeight();
-        coordinates = character.getCoordinate();
+        const coordinates = character.getCoordinate();
         const cnt = coordinates.length;
         let rx, ry, dx, dy, ndx, ndy;
         this.clear();
@@ -3565,7 +3572,7 @@
                 dy = coordinates[i][1];
                 ndx = (i < cnt - 1)? coordinates[i+1][0] : coordinates[0][0];
                 ndy = (i < cnt - 1)? coordinates[i+1][1] : coordinates[0][1];
-                dir = coordinates[i][2];
+                const dir = coordinates[i][2];
                 switch(dir) {
                     case DIR_UP:
                         ry -= tileHeight;
