@@ -2492,7 +2492,9 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
+                        const pred = this.predictPlayerDestination_Artm([px, py], 0);
+                        if (pred[0] >= formula[0] && pred[0] <= formula[0] &&
+                            pred[1] >= formula[1] && pred[1] <= formula[2]) {
                             return true;
                         }
                     }
@@ -2563,7 +2565,9 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
+                        const pred = this.predictPlayerDestination_Artm([py, px], 1);
+                        if (pred[0] >= formula[0] && pred[0] <= formula[0] &&
+                            pred[1] >= formula[1] && pred[1] <= formula[2]) {
                             return true;
                         }
                     }
@@ -2634,7 +2638,9 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        if (this.testPlayerDestinationFan_Artm(formula, [py, px], 1)) {
+                        const pred = this.predictPlayerDestination_Artm([py, px], 1);
+                        if (pred[0] >= formula[0] && pred[0] <= formula[0] &&
+                            pred[1] >= formula[1] && pred[1] <= formula[2]) {
                             return true;
                         }
                     }
@@ -2705,25 +2711,15 @@
                     ) {
                         return true;
                     } else if (IsRealUnder0_5 && this.isSensorFound()) {
-                        if (this.testPlayerDestinationFan_Artm(formula, [px, py], 0)) {
+                        const pred = this.predictPlayerDestination_Artm([px, py], 0);
+                        if (pred[0] >= formula[0] && pred[0] <= formula[0] &&
+                            pred[1] >= formula[1] && pred[1] <= formula[2]) {
                             return true;
                         }
                     }
                 }
         }
         return false;
-    };
-
-    // プレイヤーの予測判定を行う
-    Game_Event.prototype.testPlayerDestinationFan_Artm = function(formula, pos, isReverse) {
-        const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
-        const sign = [pos[0] - prevPos[0], pos[1] - prevPos[1]];
-        pos[0] = sign[0] < 0 ? Math.floor(pos[0]) : (sign[0] > 0 ? Math.ceil(pos[0]) : pos[0]);
-        pos[1] = sign[1] < 0 ? Math.floor(pos[1]) : (sign[1] > 0 ? Math.ceil(pos[1]) : pos[1]);
-        return (
-            (pos[0] >= formula[0]) && (pos[0] <= formula[0]) &&
-            (pos[1] >= formula[1]) && (pos[1] <= formula[2])
-        );
     };
 
     // 菱形範囲の探索(地形考慮完全無視)
@@ -2773,8 +2769,7 @@
         const realY = DefRealRangeY[0];
         let pos = [$gamePlayer._realX, $gamePlayer._realY];
         if (IsRealUnder0_5 && this.isSensorFound()) {
-            const prevPos = $gameTemp.playerPos_Artm(this.eventId(), 0);
-            pos = this.testPlayerDestinationSide_Artm(pos, prevPos);
+            pos = this.predictPlayerDestination_Artm(pos, 0);
         }
         const sx = flrDec(this.deltaXFrom(pos[0]));
         const sy = flrDec(this.deltaYFrom(pos[1]));
@@ -2818,19 +2813,13 @@
     };
 
     // プレイヤーの予測判定を行う(隣接マス探索用）
-    Game_Event.prototype.testPlayerDestinationSide_Artm = function(p1, p2) {
-        const real = [DefRealRangeX[0], DefRealRangeY[0]];
-        const key = "" + Math.sign(p1[0] - p2[0]) + Math.sign(p1[1] - p2[1]);
-        return {
-            "-1-1":[Math.floor(p1[0]) + real[0], Math.floor(p1[1]) + real[1]],
-            "0-1" :[p1[0], Math.floor(p1[1]) + real[1]],
-            "1-1" :[Math.ceil(p1[0]) - real[0], Math.floor(p1[1]) + real[1]],
-            "10"  :[Math.ceil(p1[0]) - real[0], p1[1]],
-            "11"  :[Math.ceil(p1[0]) - real[0], Math.ceil(p1[1]) - real[1]],
-            "01"  :[p1[0], Math.ceil(p1[1]) - real[1]],
-            "-11" :[Math.floor(p1[0]) + real[0], Math.ceil(p1[1]) - real[1]],
-            "-10" :[Math.floor(p1[0]) + real[0], p1[1]]
-        }[key] ?? p1;
+    Game_Event.prototype.predictPlayerDestination_Artm = function(pos, isReverse) {
+        const prevPos = $gameTemp.playerPos_Artm(this.eventId(), isReverse);
+        const sx = Math.sign(pos[0] - prevPos[0]);
+        const sy = Math.sign(pos[1] - prevPos[1]);
+        const targetX = sx < 0 ? Math.floor(pos[0]) : (sx > 0 ? Math.ceil(pos[0]) : pos[0]);
+        const targetY = sy < 0 ? Math.floor(pos[1]) : (sy > 0 ? Math.ceil(pos[1]) : pos[1]);
+        return [targetX, targetY];
     };
 
     Game_Event.prototype.rangeSearch = function(strDir, rx, ry, signX, signY, noPass) {
