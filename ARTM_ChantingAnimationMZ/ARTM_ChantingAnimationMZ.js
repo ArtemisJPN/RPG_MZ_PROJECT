@@ -5,18 +5,19 @@
 // http://opensource.org/licenses/mit-license.php
 // =============================================================================
 // [Version]
-// 1.0.0 初版
-// 1.1.0 魔法以外のスキルタイプにも対応
+// 1.7.0 ケケー様作「Keke_SpeedStarBattle」との競合対応
+// 1.6.4 詠唱中に沈黙状態となったとき、詠唱アニメーションが表示される不具合を修正
+// 1.6.3 詠唱アニメーションのレイヤー設定オプション(前面/背面)を追加
+// 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
+// 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
+// 1.5.2 終了フレームの指定に不具合があったため修正
+// 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
+// 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
+// 1.3.1 詠唱アニメーション継続OFF設定時、イベント発生中も中断するよう対応
 // 1.3.0 アクションフェーズ時の詠唱アニメーション継続ON/OFFを追加
 //       詠唱完了後もアニメーションのフラッシュ色が残り続ける不具合を解消
-// 1.3.1 詠唱アニメーション継続OFF設定時、イベント発生中も中断するよう対応
-// 1.5.0 終了フレームの指定機能を追加（アニメーション間の途切れ防止）
-// 1.5.1 マップシーンでも本プラグインが稼働していた不具合を修正
-// 1.5.2 終了フレームの指定に不具合があったため修正
-// 1.6.0 フェードイン用の詠唱アニメーション表示機能を追加
-// 1.6.1 通常攻撃と防御の行動を中断シーン対象から除外
-// 1.6.3 詠唱アニメーションのレイヤー設定オプション(前面/背面)を追加
-// 1.6.4 詠唱中に沈黙状態となったとき、詠唱アニメーションが表示される不具合を修正
+// 1.1.0 魔法以外のスキルタイプにも対応
+// 1.0.0 初版
 // =============================================================================
 /*:ja
  * @target MZ
@@ -125,19 +126,57 @@
         return "";
     };
 
+    Game_Temp.prototype.currentExecutingAction_Artm = function() {
+        if (BattleManager._action) {
+            return BattleManager._action;
+        }
+        if (BattleManager._actionKeSpsb) {
+            return BattleManager._actionKeSpsb;
+        }
+        return null;
+    };
+
+    Game_Temp.prototype.isSkillInterrupting_Artm = function() {
+        const action = this.currentExecutingAction_Artm();
+        if (!action) {
+            return false;
+        }
+        if (action.isAttack() || action.isGuard()) {
+            return false;
+        }
+        if (BattleManager._phase === "action") {
+            return true;
+        }
+        if (BattleManager._battleWaitKe > 0 || BattleManager._subjectKeSpsb) {
+            return true;
+        }
+        const inPopWait = [...$gameParty.aliveMembers(), ...$gameTroop.aliveMembers()]
+            .some(b => b._inPopWaitKe);
+        if (inPopWait) {
+            return true;
+        }
+        return false;
+    };
+
     Game_Temp.prototype.isKeepAnimation_Artm = function(battler) {
-        const targetPhase = ["battleEnd", ""];
+        if (!battler.isCasting_Artm()) {
+            return false;
+        }
+        if (BattleManager._phase === "battleEnd" || BattleManager._phase === "") {
+            return false;
+        }
         if (!KeepAnime) { 
             if (
                 SceneManager.isSceneChanging() ||
                 $gameTroop.isEventRunning()
-            ) { return false; }
-            targetPhase.push(this.excludSkill_Artm());
+            ) { 
+                return false; 
+            }
+            if (this.isSkillInterrupting_Artm()) {
+                return false;
+            }
         }
-        if (battler._tpbState !== "casting") {
-            return false;
-        }
-        return !targetPhase.includes(BattleManager._phase);
+        return true;
     };
 
     //-----------------------------------------------------------------------------
@@ -178,6 +217,25 @@
         return this._animationPitchArtm;
     };
 
+    Game_BattlerBase.prototype.isCasting_Artm = function() {
+        if (BattleManager.isTpb()) {
+            return this._tpbState === "casting";
+        }
+        if (BattleManager.isInTurn() && this.currentAction()) {
+            const item = this.currentAction().item();
+            return item && item.speed < 0;
+        }
+        return false;
+    };
+
+    Game_BattlerBase.prototype.isChantingActive_Artm = function() {
+        if (
+            !this.isCasting_Artm() ||
+            this.itemSaveArtm?.[1]
+        ) { return false; }
+        return $gameTemp.isKeepAnimation_Artm(this);
+    };
+
     //-----------------------------------------------------------------------------
     // Game_Battler
     //
@@ -200,6 +258,20 @@
         this.updateTpbStetePre_Artm(true);
     };
 
+    const _Game_Battler_tpbAcceleration = Game_Battler.prototype.tpbAcceleration;
+    Game_Battler.prototype.tpbAcceleration = function() {
+        if ($gameParty.inBattle() && SceneManager._scene instanceof Scene_Battle) {
+            const anyoneChanting = [...$gameParty.battleMembers(), ...$gameTroop.members()]
+                .some(b => b.isAlive() && b.isCasting_Artm());
+            if (anyoneChanting && typeof keke_timeAutoFast !== "undefined") {
+                const speed = this.tpbSpeed();
+                const baseRate = this.isActor() ? 1 : this.tpbRelativeSpeed();
+                return speed * baseRate * (typeof timeSpeed === "function" ? timeSpeed() : 1);
+            }
+        }
+        return _Game_Battler_tpbAcceleration.call(this);
+    };
+
     Game_Battler.prototype.updateTpbStetePre_Artm = function(flag) {
         if (flag) {
             this._tpbStatePrevArtm = "waiting";
@@ -217,30 +289,26 @@
 
     Sprite_Battler.prototype.canChantAnime_Artm = function() {
         const battler = this._battler;
-        const item = battler.itemSaveArtm;
         return (
-            !(item && item[1]) &&
-            battler._tpbState === "casting" &&
-            battler._tpbStatePrevArtm !== "casting" &&
-            $gameTemp.isKeepAnimation_Artm(battler)
+            battler.isChantingActive_Artm() && 
+            battler._tpbStatePrevArtm !== "casting"
         );
     };
 
     Sprite_Battler.prototype.updateChantInfo_Artm = function() {
-        let regexp, m;
         const item = this._battler.action(0)?._item;
-        if (!item?.isSkill()) {
+        const param = item?.isSkill() ? item.object().meta[TAG_NAME] : null;
+        if (!param) {
             this._chantInfoArtm = null;
             return;
         }
-        const param = item.object().meta[TAG_NAME];
-        m = (/^ID([0-9]+),ED_FRAME([0-9]+),(?:(f|F|b|B))$/g).exec(param);
+        const m = /^ID(\d+)(?:;(\d+))?\s*,\s*ED_FRAME(\d+)(?:;(\d+))?\s*,\s*([fb])$/i.exec(param);
         if (m) {
-            this._chantInfoArtm = [[+m[1]], [++m[2]], m[3].toLowerCase()];
-        }
-        m = (/^ID([0-9]+);([0-9]+),ED_FRAME([0-9]+);([0-9]+),(?:(f|F|b|B))$/g).exec(param);
-        if (m) {
-            this._chantInfoArtm = [[+m[1] ,+m[2]], [++m[3], ++m[4]], m[5].toLowerCase()];
+            const ids = m[2] ? [+m[1], +m[2]] : [+m[1]];
+            const frames = m[4] ? [+m[3] + 1, +m[4] + 1] : [+m[3] + 1];
+            this._chantInfoArtm = [ids, frames, m[5].toLowerCase()];
+        } else {
+            this._chantInfoArtm = null;
         }
     };
 
@@ -275,7 +343,7 @@
             if (battler.action(0)) {
                 speed = battler.action(0).item().speed;
             }
-            if (speed < 0 && !battler.animationPlaying_Artm()) {
+            if (speed < 0) {
                 $gameTemp.requestAnimation_Artm(this, animationId);
             }
         }
@@ -312,10 +380,39 @@
     Sprite_Animation_Artm.prototype.initialize = function(spriteBase) {
         Sprite_Animation.prototype.initialize.call(this);
         this._spriteBase = spriteBase;
+        this._isChantingAnimeArtm = true;
+        this._animeSpeedKe = 1;
     };
 
     Sprite_Animation_Artm.prototype.spriteBase = function() {
         return this._spriteBase;
+    };
+
+    Sprite_Animation_Artm.prototype.updateEffectGeometry = function() {
+        const scale = this._animation.scale / 100;
+        if (this._handle) {
+            this._handle.setLocation(this.x, this.y, 0);
+            this._handle.setRotation(this.rotation * (180 / Math.PI), 0, 0);
+            this._handle.setScale(scale, scale, scale);
+            this._handle.setSpeed(this._animation.speed / 100);
+        }
+    };
+
+    Sprite_Animation_Artm.prototype.processFlashTimings = function() {
+        for (const timing of this._animation.flashTimings) {
+            if (timing.frame === this._frameIndex) {
+                this._flashDuration = timing.duration;
+                this._flashColor = timing.color.clone();
+            }
+        }
+    };
+
+    Sprite_Animation_Artm.prototype.processSoundTimings = function() {
+        for (const timing of this._animation.soundTimings) {
+            if (timing.frame === this._frameIndex) {
+                AudioManager.playSe(timing.se);
+            }
+        }
     };
 
     //-----------------------------------------------------------------------------
@@ -330,7 +427,7 @@
 
     Spriteset_Battle.prototype.createAnimation_Artm = function(request) {
         const sprite = request.spriteBattler;
-        const animation = $dataAnimations[request.animationId];
+        const animation = { ...$dataAnimations[request.animationId] };
         const targets = request.targets;
         const mirror = request.mirror;
         targets[0].itemSaveArtm = [targets[0]._actions[0].item(), false];
@@ -347,12 +444,12 @@
         spriteAnimation.setup(targetSprites, animation, mirror, 0, null);
         spriteAnimation._animation.displayType = -1;
         targets[0].initAnimationPitch_Artm(spriteAnimation._animation.speed);
-        this._effectsContainer.addChild(spriteAnimation);
         if (sprite.chantInfo_Artm()[2] === "b") {
-            this._effectsContainer.children.unshift(
-                this._effectsContainer.children.pop()
-            );
+            this._effectsContainer.addChildAt(spriteAnimation, 0);
+        } else {
+            this._effectsContainer.addChild(spriteAnimation);
         }
+        spriteAnimation._animeSpeedKe = 1;
         this._animationSpritesArtm.push(spriteAnimation);
     };
 
@@ -377,31 +474,40 @@
     Spriteset_Battle.prototype.checkEnd_Artm = function(sprite) {
         const spriteBase = sprite.spriteBase();
         const battler = spriteBase._battler;
-        const endFrameIndex = spriteBase.chantInfo_Artm()[1];
-        const flags = [
-            !sprite.isPlaying(), false,
-            sprite._frameIndex === endFrameIndex,
-            battler._tpbState === "casting",
-            endFrameIndex === -1,
-            battler.itemSaveArtm ? battler.itemSaveArtm[1] : false
-        ];
-        if (!flags[5] && !$gameTemp.isKeepAnimation_Artm(battler)) {
-            flags[5] = flags[1] = true;
-        }
-        battler.updateTpbStetePre_Artm(!flags[3] || flags[5]);
-        return flags;
+        const endFrame = spriteBase.chantInfo_Artm()[1];
+        const isActive = battler.isChantingActive_Artm();
+        const isEnded = !sprite.isPlaying();
+        const isReachLoopPoint = (endFrame === -1) 
+            ? isEnded 
+            : (sprite._frameIndex >= endFrame && !sprite._hasQueuedNextArtm);
+        if (isReachLoopPoint) sprite._hasQueuedNextArtm = true;
+        battler.updateTpbStetePre_Artm(!isActive);
+        return {
+            shouldRemove: !isActive || isEnded,
+            shouldQueueNext: isActive && isReachLoopPoint
+        };
     };
 
     Spriteset_Battle.prototype.updateAnimations_Artm = function() {
-        for (const sprite of this._animationSpritesArtm) {
-            const flags = this.checkEnd_Artm(sprite);
-            if (flags[0] || flags[1] || flags[5]) {
+        for (const sprite of [...this._animationSpritesArtm]) {
+            const result = this.checkEnd_Artm(sprite);
+            const spriteBase = sprite.spriteBase();
+            const battler = spriteBase._battler;
+            const isActive = battler && battler.isChantingActive_Artm();
+            if (result.shouldRemove) {
                 this.removeAnimation_Artm(sprite);
-                if (flags[3] && flags[4]) {
+                if (result.shouldQueueNext) {
                     this.insertQueue_Artm(sprite);
                 }
-            } else if (flags[3] && flags[2]) {
-                this.insertQueue_Artm(sprite);
+            } 
+            else if (!isActive) {
+                sprite.visible = false;
+            } 
+            else {
+                sprite.visible = true;
+                if (result.shouldQueueNext) {
+                    this.insertQueue_Artm(sprite);
+                }
             }
         }
         for (const d of this._queueArtm) {
@@ -424,6 +530,7 @@
         if (!sprite.isPlaying()) {
             sprite.spriteBase().setBlendColor([0, 0, 0, 0]);
         }
+        if (typeof sprite.stop === "function") sprite.stop();
         this._animationSpritesArtm.remove(sprite);
         this._effectsContainer.removeChild(sprite);
         sprite.targetObjects[0].endAnimation_Artm();
