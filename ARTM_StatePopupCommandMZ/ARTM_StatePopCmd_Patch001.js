@@ -4,6 +4,7 @@
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // *****************************************************
+// ver.1.01: ARTM_StatePopupCommandMZの更新に合わせ一部修正
 // ver.1.00: 新規公開版
 // *************************
 /*:ja
@@ -37,9 +38,9 @@
     // -----------------------------------------------------
     // Window_BattleTarget
     // -----------------------------------------------------
-    const _Window_BattleTarget_unitChange = Window_BattleTarget.prototype.unitChange;
-    Window_BattleTarget.prototype.unitChange = function() {
-        const unit = _Window_BattleTarget_unitChange.call(this);
+    const _Window_BattleTarget_getChangedUnit = Window_BattleTarget.prototype.getChangedUnit;
+    Window_BattleTarget.prototype.getChangedUnit = function() {
+        const unit = _Window_BattleTarget_getChangedUnit.call(this);
         if(unit === "party") {
             BattleManager.callPseudo3dMethod(
                 "targeting", $gameParty.members()
