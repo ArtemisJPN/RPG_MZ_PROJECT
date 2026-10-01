@@ -22,7 +22,7 @@
  * ■ 特徴・操作方法
  * ・プラグインパラメータで指定したショートカットキーか、ボタンアイコンを押すと
  *   対象者(味方or敵）のステート・バフ確認画面を開きます。
- * ・サイドビュー戦闘ではマウスカーソルを対象者に置くだけで確認画面が開きます。
+ * ・サイドビュー戦闘では対象者の立ち絵をクリックorタップするだけで確認画面が開きます。
  *
  * ■ ステートのメモ欄（任意設定）
  * 【ステートの説明内容（指定がない場合はメッセージ1を自動表示）】
@@ -471,7 +471,9 @@ function Window_BattleTarget() {
             this._stateListWindow && this._stateListWindow.isOpenAndActive();
         if (this.isOpenAndActive() || isStateListActive) {
             const target = $gameTemp.touchTarget();
-            if (target && this._targets.includes(target)) {
+            const isTriggered =
+                $dataSystem.optSideView ? TouchInput.isTriggered() : true;
+            if (isTriggered && target && this._targets.includes(target)) {
                 this.select(this._targets.indexOf(target));
                 if ($gameTemp.touchState() === "click") {
                     if (!$dataSystem.optSideView) {
