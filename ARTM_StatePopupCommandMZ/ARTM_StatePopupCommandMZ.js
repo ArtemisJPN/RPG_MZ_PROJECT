@@ -140,7 +140,7 @@ function Window_BattleTarget() {
     const IS_OPACITY_ST    = PARAMS.is_opacity_st?.toLowerCase() === "true";
     const IS_OPACITY       = IS_OPACITY_BT || IS_OPACITY_ST;
     const RAW_KEY          = (PARAMS.shortcut_key || "S").trim();
-    const BUTTON_ICON_INDEX = +(PARAMS.button_icon_index || "87");
+    const BUTTON_ICON_INDEX = +(PARAMS.button_icon_index || "177");
     const BUTTON_OFFSET_X   = +(PARAMS.button_offset_x || "0");
     const SHORTCUT_KEY     = RAW_KEY.toLowerCase();
 
@@ -178,6 +178,7 @@ function Window_BattleTarget() {
     };
 
     Scene_Battle.prototype.commandStatePopup_Artm = function() {
+        SoundManager.playOk();
         this.startTargetSelection_Artm();
     };
 
@@ -272,6 +273,8 @@ function Window_BattleTarget() {
             !this._stateListWindowArtm?.visible &&
             !this._targetWindowArtm?.visible &&
             BattleManager.isInputting() &&
+            BattleManager.actor() &&
+            this._actorCommandWindow?.active &&
             this._actorCommandWindow?.visible &&
             !this._actorCommandWindow?.isClosing() &&
             this._actorCommandWindow?.openness > 0
@@ -346,6 +349,15 @@ function Window_BattleTarget() {
         this.addChild(this._statePopupButtonArtm);
     };
 
+    const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
+    Scene_Battle.prototype.terminate = function() {
+        _Scene_Battle_terminate.call(this);
+        if (_statePopupButtonBitmap) {
+            _statePopupButtonBitmap.destroy();
+            _statePopupButtonBitmap = null;
+        }
+    };
+
     // -----------------------------------------------------
     // Window_Selectable
     // -----------------------------------------------------
@@ -354,7 +366,11 @@ function Window_BattleTarget() {
         _Window_Selectable_processHandling.call(this);
         const scene = SceneManager._scene;
         if (scene instanceof Scene_Battle && this === scene._actorCommandWindow) {
-            if (scene.isStatePopupButtonActive_Artm() && Input.isTriggered(SHORTCUT_KEY)) {
+            if (
+                scene.isStatePopupButtonActive_Artm() &&
+                this.isOpenAndActive() &&
+                Input.isTriggered(SHORTCUT_KEY) 
+            ) {
                 scene._commandWindowArtm = this;
                 this.deactivate();
                 scene.commandStatePopup_Artm();
@@ -425,7 +441,8 @@ function Window_BattleTarget() {
 
     Window_BattleTarget.prototype.hide = function() {
         Window_Selectable.prototype.hide.call(this);
-        $gameParty.select(null);$gameTroop.select(null);
+        $gameParty.select(null);
+        $gameTroop.select(null);
     };
 
     Window_BattleTarget.prototype.refresh = function() {
