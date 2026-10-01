@@ -5,17 +5,17 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
-// 1.0.0 初版
-// 1.1.0 戦闘不能アクターも勝利モーションになる不具合を修正
-//       大規模なリファクタリングを実施
-// 1.1.1 勝利モーション開始直後の周期遅延を修正
-// 1.1.2 負荷軽減のためリファクタリングを実施
-// 1.1.3 デフォルトモーション画像のリジュームが遅延する不具合を修正
-// 1.2.0 プラグイン軽量化のため需要性が低いグループ機能を廃止
+// 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
+// 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
 // 1.2.1 パフォーマンス改善
 //       画像変更後に自動で元画像へ戻らないよう仕様変更
-// 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
-// 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
+// 1.2.0 プラグイン軽量化のため需要性が低いグループ機能を廃止
+// 1.1.3 デフォルトモーション画像のリジュームが遅延する不具合を修正
+// 1.1.2 負荷軽減のためリファクタリングを実施
+// 1.1.1 勝利モーション開始直後の周期遅延を修正
+// 1.1.0 戦闘不能アクターも勝利モーションになる不具合を修正
+//       大規模なリファクタリングを実施
+// 1.0.0 初版
 // =================================================================
 /*:ja
  * @target MZ
@@ -83,12 +83,11 @@
  
 (() => {
 
-    let VALUES = "", STACK_WK = [];
+    const STACK_WK = [];
     const TAG = "AMV_MTYPE";
     const DLMTR = {"size": "^", "image": "#"};
     const MOTIONS = Object.keys(Sprite_Actor.MOTIONS);
-    VALUES = VALUES.slice(0, -1).replace("\"", "");
-    MOTIONS.forEach(m => VALUES += m + "|");
+    const VALUES = MOTIONS.join("|");
 
     //-----------------------------------------------------------------------------
     // regexp patterns
@@ -110,7 +109,7 @@
 
     function _makeParams(obj, params) {
         const result = [];
-        const regexp = new RegExp(REGEXP_PATTERNS[0], "g");
+        const regexp = new RegExp(REGEXP_PATTERNS[0]);
         if (regexp.test(params + ",")) {
             const args = params.split(",");
             for (let i = 0; i < args.length; i++) {
@@ -122,11 +121,15 @@
     }
 
     function _makeParam(args, index) {
-        const regexp = new RegExp(REGEXP_PATTERNS[2], "g");
+        const regexp = new RegExp(REGEXP_PATTERNS[2]);
         const match = regexp.exec(args[index + 1]);
-        const split = match ? match[0].split(";") : null;
-        const loop = split ? split.shift() : args[index + 1];
-        const speed = split ? split : null; 
+        let loop = args[index + 1];
+        let speed = null;
+        if (match) {
+            const split = match[0].split(";");
+            loop = split.shift();
+            speed = split.map(Number);
+        }
         return ({
             "type": args[index],
             "loop": +loop,
@@ -141,7 +144,7 @@
     Game_Party.prototype.performVictory = function() {
         _Game_Party_performVictory.call(this);
         const motions = Sprite_Actor.MOTIONS;
-        for (key in motions) {
+        for (const key in motions) {
             if (!motions[key].loop) {
                 motions[key].loop = true;
                 STACK_WK.push(key);
@@ -178,7 +181,7 @@
 
     Game_Actor.prototype.setParams_Artm = function(params) {
         this._motionsArtm = {
-            "motions": params.clone(),
+            "motions": [...params],
             "count": 0,
             "pattern": 4
         };        
@@ -217,10 +220,10 @@
     Sprite_Actor.prototype.setBattler = function(battler) {
         const battlerOld = this._actor;
         _Sprite_Actor_setBattler.call(this, battler);
-        if (battler !== battlerOld) {
-            getParams(battler).map(p => p["type"]).forEach(tag => {
-                this.setBitmaps_Artm(tag);
-            }, this);
+        if (battler && battler !== battlerOld) {
+            for (const param of getParams(battler)) {
+                this.setBitmaps_Artm(param.type);
+            }
         }
     };
 
@@ -239,16 +242,17 @@
             case "starting":
                 this._pattern = 0;
                 this._motionsArtm = this._actor._motionsArtm;
-                this.nextPhase_Artm("processing");
+                this._actor.nextPhase_Artm("processing");
                 if (this.existMotion_Artm()) {
                     break;
                 }
+                // falls through
             case "processing":
                 this.updateFrame_Artm();
-                this.nextPattern_Artm();
+                this._motionsArtm.pattern = this._pattern;
                 break;
             case "changing":
-                this.nextPattern_Artm();
+                this._motionsArtm.pattern = this._pattern;
                 break;
         }
         _Sprite_Actor_updateFrame.call(this);
@@ -258,24 +262,24 @@
         if (this._pattern < this._motionsArtm.pattern) {
             if (this._motionsArtm.motions.length > 0) {
                 this.refreshMotion_Artm();
-            } else if (this.checkMotion_Artm(1)) {
-                this.refreshWeapon_Artm(this.loopCount_Artm());
-                this.decrementCount_Artm();
+            } else if (this.isMotionEnd(1)) {
+                this.refreshWeapon_Artm(this._motionsArtm.count);
+                this._motionsArtm.count--;
             }
             this.refreshWeapon_Artm();
         }
     };
 
     Sprite_Actor.prototype.refreshMotion_Artm = function() {
-        if (this.checkMotion_Artm(0)) {
+        if (this.isMotionEnd(0)) {
             const motions = this._motionsArtm.motions;
             const motion = motions.shift();
             this.setMotionType_Artm(motion);
             this.refreshWeapon_Artm();
-            this.decrementCount_Artm();
+            this._motionsArtm.count--;
         } else {
-            this.decrementCount_Artm();
-            this.refreshWeapon_Artm(this.loopCount_Artm() + 1);
+            this._motionsArtm.count--;
+            this.refreshWeapon_Artm(this._motionsArtm.count + 1);
         }
     };
 
@@ -287,21 +291,21 @@
 
     const _Sprite_Actor_updateMotionCount = Sprite_Actor.prototype.updateMotionCount;
     Sprite_Actor.prototype.updateMotionCount = function() {
-        if (this.checkResize_Artm()) {
-            if (++this._motionCount >= this.motionSpeed_Artm()) {
-                if (this._pattern !== 2) {
-                    ;
-                } else if (this.checkSizeEnd_Artm()) {
-                    this.updateMotionCountLooping_Artm()
+        if (!this.checkResize_Artm()) {
+            _Sprite_Actor_updateMotionCount.call(this);
+            return
+        }
+        if (++this._motionCount >= this.motionSpeed_Artm()) {
+            if (this._pattern === 2) {
+                if (this.checkSizeEnd_Artm()) {
+                    this.updateMotionCountLooping_Artm();
                 } else if (this.existMotions_Artm()) {
                     this.updateMotionCountLooped_Artm();
                 }
-                this._pattern = (this._pattern + 1) % 3
-                this._motionCount = 0;
             }
-            return;
+            this._pattern = (this._pattern + 1) % 3
+            this._motionCount = 0;
         }
-        _Sprite_Actor_updateMotionCount.call(this);
     };
 
     Sprite_Actor.prototype.updateMotionCountLooping_Artm = function() {
@@ -310,11 +314,11 @@
     };
 
     Sprite_Actor.prototype.updateMotionCountLooped_Artm = function() {
-        this.decrementCount_Artm();
-        if (this.checkMotion_Artm(-1)) {
+        this._motionsArtm.count--;
+        if (this.isMotionEnd(-1)) {
             this._motionsArtm.pattern = 4;
             this._motionsArtm.count = 0;
-            this.nextPhase_Artm("processing");
+            this._actor.nextPhase_Artm("processing");
         } else {
             this._motionsArtm.pattern = 4;
             this._indexArtm = 0;
@@ -346,20 +350,20 @@
 
     Sprite_Actor.prototype.changeMotionResize_Artm = function(type) {
         const pattern = REGEXP_PATTERNS[1];
-        const regexp = new RegExp(pattern, "g");
+        const regexp = new RegExp(pattern);
         const match = regexp.exec(type);
         if (match) {
             if (+match[2] === (+match[2]).clamp(2, 6)) {
                 this._sizeCountArtm = +match[2];
                 this._sizeCountMaxArtm = +match[2];
-                this.nextPhase_Artm("changing");
+                this._actor.nextPhase_Artm("changing");
             }
             return match[1] + DLMTR.image + match[3];
         }
         return type;
     };
 
-    Sprite_Actor.prototype.checkMotion_Artm = function(sign) {
+    Sprite_Actor.prototype.isMotionEnd = function(sign) {
         return Math.sign(this._motionsArtm.count) === sign;
     };
 
@@ -375,20 +379,12 @@
         return this.motionName_Artm() === "swing";
     };
 
-    Sprite_Actor.prototype.decrementCount_Artm = function() {
-        this._motionsArtm.count--;
-    };
-
     Sprite_Actor.prototype.existMotion_Artm = function() {
         return MOTIONS[this._motionsArtm?.motions[0]?.type];
     };
 
     Sprite_Actor.prototype.existMotions_Artm = function() {
         return !!this._motionsArtm?.motions && this._motion;
-    };
-
-    Sprite_Actor.prototype.loopCount_Artm = function() {
-        return this._motionsArtm.count;
     };
 
     Sprite_Actor.prototype.motionName_Artm = function() {
@@ -400,20 +396,13 @@
     };
 
     Sprite_Actor.prototype.motionSpeed_Artm = function() {
+        const motionSpeed = this.motionSpeed();
         if (this._motionsArtm.speed) {
             const times = this._indexArtm * 3;
             const index = times + this._pattern;
-            return this._motionsArtm.speed[index];
+            return this._motionsArtm.speed[index] ?? motionSpeed;
         }
-        return this.motionSpeed();
-    };
-
-    Sprite_Actor.prototype.nextPattern_Artm = function() {
-        this._motionsArtm.pattern = this._pattern;
-    };
-
-    Sprite_Actor.prototype.nextPhase_Artm = function(state) {
-        this._actor.nextPhase_Artm(state);
+        return motionSpeed;
     };
 
     Sprite_Actor.prototype.phase_Artm = function() {
@@ -445,7 +434,7 @@
         const motions = Sprite_Actor.MOTIONS;
         if (STACK_WK.length > 0) {
             STACK_WK.forEach(v => motions[v].loop = false);
-            STACK_WK = [];
+            STACK_WK.length = 0;
         }
         _Scene_Battle_terminate.call(this);
     };
