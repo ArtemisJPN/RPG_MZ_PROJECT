@@ -646,7 +646,8 @@ function Window_BattleTarget() {
             return item.meta[SPCMZ_DESC];
         }
         if (item.id && item.message1) {
-            return item.message1.replace("%1", "");
+            const name = this._target ? this._target.name() : "";
+            return item.message1.replace("%1", name);
         }
         if (item.paramId !== undefined) {
             const typeText = item.level > 0 ? "上昇" : "低下";
