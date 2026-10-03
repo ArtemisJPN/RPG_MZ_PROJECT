@@ -801,10 +801,6 @@ function Window_BattleTarget() {
         const y = TouchInput.y;
         const scene = SceneManager._scene;
         const nameWin = scene?._stateNameWindowArtm;
-        if (nameWin && nameWin.visible) {
-            const rect = new Rectangle(nameWin.x, nameWin.y, nameWin.width, nameWin.height);
-            if (rect.contains(x, y)) return false;
-        }
         const switchBtn = scene?._stateSwitchButtonArtm;
         if (switchBtn && switchBtn.visible) {
             const rect = new Rectangle(switchBtn.x, switchBtn.y, switchBtn.width, switchBtn.height);
@@ -842,6 +838,9 @@ function Window_BattleTarget() {
         this.hide();
     };
 
+    Window_BattleStateName.prototype.processTouch = function() {
+    };
+
     Window_BattleStateName.prototype.setTarget = function(target) {
         this._target = target;
         this.refresh();
@@ -863,8 +862,8 @@ function Window_BattleTarget() {
         const width = Math.ceil(textWidth + this.padding * 2 + 16);
         const height = this.fittingHeight(1);
         const listWin = scene ? scene._stateListWindowArtm : null;
-        const x = 0;
-        const y = 0;
+        const x = listWin ? listWin.x : 0;
+        const y = listWin ? Math.max(0, listWin.y - height) : 0;        
         const sizeChanged = (this.width !== width || this.height !== height);
         this.width = width;
         this.height = height;
