@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
+// 1.4.0 条件ごとにモーションを変更できる機能を追加
 // 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
 // 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
 // 1.2.1 パフォーマンス改善
@@ -46,6 +47,18 @@
  *  オプション3 ：指定は任意。（次項のオプションを参照）
  *  　　　　　 　 ※オプション3は、オプション2の指定が必須です。
  *
+ *  <AMV_MTYPE_SWn:ここはAMV_MTYPEと同じ設定を記載する>
+ *  ・SW0001がONの時に限定する場合
+ *    <AMV_MTYPE_SW1:abnormal,0>
+ *
+ *  <AMV_MTYPE_STn:ここはAMV_MTYPEと同じ設定を記載する>
+ *  ・ステート5の状態時に限定する場合
+ *    <AMV_MTYPE_ST5:abnormal,0>
+ *
+ *  <AMV_MTYPE_HPn:ここはAMV_MTYPEと同じ設定を記載する>
+ *  ・HP25%以下に限定する場合
+ *    <AMV_MTYPE_HP25:abnormal,0>
+ *
  * ～使用例１～
  * ・勝利2回、素振り1回、のあとに眠りを繰り返す場合
  *   <AMV_MTYPE:victory,2,swing,1,sleep,0>
@@ -84,14 +97,24 @@
 (() => {
 
     const STACK_WK = [];
-    const TAG = "AMV_MTYPE";
+    const TAG_BASE  = "AMV_MTYPE";
     const DLMTR = {"size": "^", "image": "#"};
     const MOTIONS = Object.keys(Sprite_Actor.MOTIONS);
     const VALUES = MOTIONS.join("|");
 
     //-----------------------------------------------------------------------------
+    // victory_conditions
+    //-----------------------------------------------------------------------------
+    const VICTORY_CONDITIONS = [
+        {
+            tag: `${TAG_BASE}_PINCH`,
+            check: (actor) => actor.isDying() // 瀕死（HP25%以下）
+        }
+    ];
+
+    //-----------------------------------------------------------------------------
     // regexp patterns
-    //
+    //-----------------------------------------------------------------------------
     const REGEXP_PATTERNS = [
         "^((?:" + VALUES + ").*,[0-9]+(?:;[0-9]+)*,)+$",
         "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size +
@@ -101,10 +124,79 @@
 
     //-----------------------------------------------------------------------------
     // function
-    //
+    //-----------------------------------------------------------------------------
     function getParams(obj) {
         const meta = obj.actor().meta;
-        return meta[TAG] ? _makeParams(obj, meta[TAG]) : [];
+        const swKey = _findSwitchParamKey(meta);
+        if (swKey) {
+            return _makeParams(obj, meta[swKey]);
+        }
+        const stateKey = _findStateParamKey(obj, meta);
+        if (stateKey) {
+            return _makeParams(obj, meta[stateKey]);
+        }
+        const hpKey = _findHpParamKey(obj, meta);
+        if (hpKey) {
+            return _makeParams(obj, meta[hpKey]);
+        }
+        return meta[TAG_BASE] ? _makeParams(obj, meta[TAG_BASE]) : [];
+    }
+
+    function _findSwitchParamKey(meta) {
+        const matches = [];
+        for (const key in meta) {
+            const match = key.match(/^AMV_MTYPE_SW(\d+)$/);
+            if (match) {
+                const swId = Number(match[1]);
+                if ($gameSwitches.value(swId)) {
+                    matches.push({ id: swId, key: key });
+                }
+            }
+        }
+        if (matches.length === 0) { return null; }
+        matches.sort((a, b) => a.id - b.id);
+        return matches[0].key;
+    }
+
+    function _findStateParamKey(obj, meta) {
+        for (const key in meta) {
+            const match = key.match(/^AMV_MTYPE_ST(\d+)$/);
+            if (match && obj.isStateAffected(Number(match[1]))) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    function _findHpParamKey(obj, meta) {
+        const matches = [];
+        for (const key in meta) {
+            const match = key.match(/^AMV_MTYPE_HP(\d+)$/);
+            if (match) {
+                const threshold = Number(match[1]);
+                const maxAllowedHp = Math.ceil(obj.mhp * (threshold / 100));
+                if (obj.hp <= maxAllowedHp) {
+                    matches.push({ rate: threshold, key: key });
+                }
+            }
+        }
+        if (matches.length === 0) { return null; }
+        matches.sort((a, b) => a.rate - b.rate);
+        return matches[0].key;
+    }
+
+    function getAllParamsForPreload(obj) {
+        const meta = obj.actor().meta;
+        let allParams = [];
+        if (meta[TAG_BASE]) {
+            allParams = allParams.concat(_makeParams(obj, meta[TAG_BASE]));
+        }
+        for (const key in meta) {
+            if (/^AMV_MTYPE_(?:SW|HP|ST)\d+$/.test(key)) {
+                allParams = allParams.concat(_makeParams(obj, meta[key]));
+            }
+        }
+        return allParams;
     }
 
     function _makeParams(obj, params) {
@@ -139,7 +231,7 @@
 
     //-----------------------------------------------------------------------------
     // Game_Party
-    //
+    //-----------------------------------------------------------------------------
     const _Game_Party_performVictory = Game_Party.prototype.performVictory;
     Game_Party.prototype.performVictory = function() {
         _Game_Party_performVictory.call(this);
@@ -154,7 +246,7 @@
 
     //-----------------------------------------------------------------------------
     // Game_Battler
-    //
+    //-----------------------------------------------------------------------------
     const _Game_Battler_onBattleEnd = Game_Battler.prototype.onBattleEnd;
     Game_Battler.prototype.onBattleEnd = function() {
         if (this instanceof Game_Actor) {
@@ -166,7 +258,7 @@
 
     //-----------------------------------------------------------------------------
     // Game_Actor
-    //
+    //-----------------------------------------------------------------------------
     const _Game_Actor_initMembers = Game_Actor.prototype.initMembers;
     Game_Actor.prototype.initMembers = function() {
         _Game_Actor_initMembers.call(this);
@@ -176,7 +268,7 @@
     const _Game_Actor_setup = Game_Actor.prototype.setup;
     Game_Actor.prototype.setup = function(actorId) {
         _Game_Actor_setup.call(this, actorId);
-        this._paramsArtem = getParams(this);
+        this._paramsArtem = [];
     };
 
     Game_Actor.prototype.setParams_Artm = function(params) {
@@ -190,7 +282,8 @@
     const _Game_Actor_performVictory = Game_Actor.prototype.performVictory;
     Game_Actor.prototype.performVictory = function() {
         _Game_Actor_performVictory.call(this);
-        const params = this._paramsArtem;
+        const params = getParams(this);
+        this._paramsArtem = params;
         if (this.canMove() && params.length > 0) {
             this.requestMotion(params[0].type);
             this.setParams_Artm(params);       
@@ -204,8 +297,7 @@
 
     //-----------------------------------------------------------------------------
     // Sprite_Actor
-    //
-
+    //-----------------------------------------------------------------------------
     const _Sprite_Actor_initMembers = Sprite_Actor.prototype.initMembers;
     Sprite_Actor.prototype.initMembers = function() {
         _Sprite_Actor_initMembers.call(this);
@@ -221,7 +313,7 @@
         const battlerOld = this._actor;
         _Sprite_Actor_setBattler.call(this, battler);
         if (battler && battler !== battlerOld) {
-            for (const param of getParams(battler)) {
+           for (const param of getAllParamsForPreload(battler)) {
                 this.setBitmaps_Artm(param.type);
             }
         }
@@ -428,7 +520,7 @@
 
     //-----------------------------------------------------------------------------
     // Scene_Battle
-    //
+    //-----------------------------------------------------------------------------
     const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
     Scene_Battle.prototype.terminate = function() {
         const motions = Sprite_Actor.MOTIONS;
