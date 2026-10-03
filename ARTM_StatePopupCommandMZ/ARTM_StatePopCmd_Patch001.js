@@ -76,6 +76,7 @@
             nextIndex = targets.findIndex(t => t.isActor());
         }
         if (nextIndex >= 0) {
+            $gameTemp.clearTouchState();
             SoundManager.playCursor();
             this._targetWindowArtm.select(nextIndex);
             this.showStateListWindow_Artm();
@@ -158,6 +159,15 @@
         return rect.contains(x, y);
     };
 
+    Sprite_StateSwitchButton_Artm.prototype.processTouch = function() {
+        if (this.visible && this.isBeingTouched()) {
+            if (TouchInput.isTriggered()) {
+                $gameTemp.clearTouchState();
+            }
+        }
+        Sprite_Button.prototype.processTouch.call(this);
+    };
+
     Sprite_StateSwitchButton_Artm.prototype.createButtonBitmap = function() {
         const size = BUTTON_SIZE;
         const bmp = new Bitmap(size, size);
@@ -190,7 +200,7 @@
     };
 
     Sprite_StateSwitchButton_Artm.prototype.onClick = function() {
-        TouchInput.clear();
+        $gameTemp.clearTouchState();
         const scene = SceneManager._scene;
         if (scene instanceof Scene_Battle) {
             scene.toggleTargetUnit_Artm();
