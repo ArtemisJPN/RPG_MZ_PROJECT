@@ -103,16 +103,6 @@
     const VALUES = MOTIONS.join("|");
 
     //-----------------------------------------------------------------------------
-    // victory_conditions
-    //-----------------------------------------------------------------------------
-    const VICTORY_CONDITIONS = [
-        {
-            tag: `${TAG_BASE}_PINCH`,
-            check: (actor) => actor.isDying() // 瀕死（HP25%以下）
-        }
-    ];
-
-    //-----------------------------------------------------------------------------
     // regexp patterns
     //-----------------------------------------------------------------------------
     const REGEXP_PATTERNS = [
@@ -129,17 +119,17 @@
         const meta = obj.actor().meta;
         const swKey = _findSwitchParamKey(meta);
         if (swKey) {
-            return _makeParams(obj, meta[swKey]);
+            return _makeParams(meta[swKey]);
         }
         const stateKey = _findStateParamKey(obj, meta);
         if (stateKey) {
-            return _makeParams(obj, meta[stateKey]);
+            return _makeParams(meta[stateKey]);
         }
         const hpKey = _findHpParamKey(obj, meta);
         if (hpKey) {
-            return _makeParams(obj, meta[hpKey]);
+            return _makeParams(meta[hpKey]);
         }
-        return meta[TAG_BASE] ? _makeParams(obj, meta[TAG_BASE]) : [];
+        return meta[TAG_BASE] ? _makeParams(meta[TAG_BASE]) : [];
     }
 
     function _findSwitchParamKey(meta) {
@@ -189,17 +179,17 @@
         const meta = obj.actor().meta;
         let allParams = [];
         if (meta[TAG_BASE]) {
-            allParams = allParams.concat(_makeParams(obj, meta[TAG_BASE]));
+            allParams = allParams.concat(_makeParams(meta[TAG_BASE]));
         }
         for (const key in meta) {
             if (/^AMV_MTYPE_(?:SW|HP|ST)\d+$/.test(key)) {
-                allParams = allParams.concat(_makeParams(obj, meta[key]));
+                allParams = allParams.concat(_makeParams(meta[key]));
             }
         }
         return allParams;
     }
 
-    function _makeParams(obj, params) {
+    function _makeParams(params) {
         const result = [];
         const regexp = new RegExp(REGEXP_PATTERNS[0]);
         if (regexp.test(params + ",")) {
@@ -268,7 +258,6 @@
     const _Game_Actor_setup = Game_Actor.prototype.setup;
     Game_Actor.prototype.setup = function(actorId) {
         _Game_Actor_setup.call(this, actorId);
-        this._paramsArtem = [];
     };
 
     Game_Actor.prototype.setParams_Artm = function(params) {
@@ -283,7 +272,6 @@
     Game_Actor.prototype.performVictory = function() {
         _Game_Actor_performVictory.call(this);
         const params = getParams(this);
-        this._paramsArtem = params;
         if (this.canMove() && params.length > 0) {
             this.requestMotion(params[0].type);
             this.setParams_Artm(params);       
