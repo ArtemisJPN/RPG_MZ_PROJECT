@@ -77,7 +77,6 @@
         }
         if (nextIndex >= 0) {
             $gameTemp.clearTouchState();
-            SoundManager.playCursor();
             this._targetWindowArtm.select(nextIndex);
             this.showStateListWindow_Artm();
 
