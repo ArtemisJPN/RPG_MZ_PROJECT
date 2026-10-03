@@ -742,10 +742,15 @@ function Window_BattleTarget() {
         if (target) {
             this.unitChange();
             if (target.isActor()) {
+                $gameTroop.select(null);
                 $gameParty.select(target);
             } else if (target.isEnemy()) {
+                $gameParty.select(null);
                 $gameTroop.select(target);
             }
+        } else {
+            $gameParty.select(null);
+            $gameTroop.select(null);
         }
     };
 
@@ -769,10 +774,18 @@ function Window_BattleTarget() {
     };
 
     Window_BattleTarget.prototype.processTouch = function() {
-        Window_Selectable.prototype.processTouch.call(this);
-        if (!this.canProcessTouchTarget()) return;
+        if (this.isOpenAndActive()) {
+            Window_Selectable.prototype.processTouch.call(this);
+        }
+        if (!this.canProcessTouchTarget()) {
+            $gameTemp.clearTouchState();
+            return;
+        }
         const target = $gameTemp.touchTarget();
-        if (!this.isValidTouchTarget(target)) return;
+        if (!this.isValidTouchTarget(target)) {
+            $gameTemp.clearTouchState();
+            return;
+        }
         this.select(this._targets.indexOf(target));
         if ($gameTemp.touchState() === "click") {
             this.onTargetClicked(target);
@@ -783,7 +796,21 @@ function Window_BattleTarget() {
     Window_BattleTarget.prototype.canProcessTouchTarget = function() {
         const isStateListActive = this._stateListWindow?.isOpenAndActive();
         if (!this.isOpenAndActive() && !isStateListActive) return false;
-        return $dataSystem.optSideView ? TouchInput.isTriggered() : true;
+        if (!TouchInput.isTriggered()) return false;
+        const x = TouchInput.x;
+        const y = TouchInput.y;
+        const scene = SceneManager._scene;
+        const nameWin = scene?._stateNameWindowArtm;
+        if (nameWin && nameWin.visible) {
+            const rect = new Rectangle(nameWin.x, nameWin.y, nameWin.width, nameWin.height);
+            if (rect.contains(x, y)) return false;
+        }
+        const switchBtn = scene?._stateSwitchButtonArtm;
+        if (switchBtn && switchBtn.visible) {
+            const rect = new Rectangle(switchBtn.x, switchBtn.y, switchBtn.width, switchBtn.height);
+            if (rect.contains(x, y)) return false;
+        }
+        return true;
     };
 
     Window_BattleTarget.prototype.isValidTouchTarget = function(target) {
@@ -836,8 +863,8 @@ function Window_BattleTarget() {
         const width = Math.ceil(textWidth + this.padding * 2 + 16);
         const height = this.fittingHeight(1);
         const listWin = scene ? scene._stateListWindowArtm : null;
-        const x = listWin ? listWin.x : 0;
-        const y = listWin ? Math.max(0, listWin.y - height) : 0;
+        const x = 0;
+        const y = 0;
         const sizeChanged = (this.width !== width || this.height !== height);
         this.width = width;
         this.height = height;
