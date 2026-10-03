@@ -42,6 +42,17 @@
  * @desc 残りターン表示を設定します。%に残りターン数が表示されます。
  * @default 残り%ターン
  *
+ * @param turns_display_mode
+ * @type select
+ * @option 右側（通常）
+ * @value text
+ * @option アイコン右下
+ * @value icon
+ * @text 残りターンの表示形式
+ * @desc 残りターンの表示形式を指定します。
+ * （リスト右端のテキスト表示 / アイコン右下のバッジ表示）
+ * @default text
+ *
  * @param empty_text
  * @type string
  * @text ステートなし表示テキスト
@@ -123,6 +134,172 @@
  *（他のカスタムボタンがある場合は大きめに設定して下さい。）
  * @default 0
  *
+ * @param detail_section_titles
+ * @text 詳細見出し文言
+ * @desc 詳細ウィンドウに表示する各セクションの見出しタイトルを設定します。
+ * @type struct<DetailSectionTitles>
+ * @default {"detail":"【解説】","removal":"【解除条件】","effect":"【主な効果】"}
+ *
+ * @param buff_level_texts
+ * @text バフ増減テキスト
+ * @desc バフ・デバフのレベル変動を表す文言を設定します。
+ * @type struct<BuffLevelTexts>
+ * @default {"up":"上昇","down":"低下"}
+ *
+ * @param state_list_texts
+ * @text ステート一覧文言
+ * @desc 一覧画面における説明や効果なし時のテキストを設定します。
+ * @type struct<StateListTexts>
+ * @default {"buffDesc":"%1段階%2中","noEffect":"効果はありません。"}
+ *
+ * @param removal_texts
+ * @text 解除条件文言
+ * @desc 詳細画面で表示する各解除条件のテキストを設定します。
+ * @type struct<RemovalTexts>
+ * @default {"byDamage":"被ダメージ時解除: %1%","turnTiming":"ターン経過で解除 (%1)","battleEnd":"戦闘終了で自動解除","byWalking":"マップ歩行で解除 (%1歩)","noRemoval":"自動解除なし（永続）","timingAction":"行動終了時","timingTurn":"ターン終了時","buffTurn":"ターン終了時に解除判定"}
+ *
+ * @param effect_texts
+ * @text 効果詳細文言
+ * @desc 詳細画面で表示する各効果や特徴のテキストを設定します。
+ * @type struct<EffectTexts>
+ * @default {"none":"特別な効果はありません","restriction1":"敵を無差別に攻撃","restriction2":"味方を攻撃","restriction3":"行動不能","hpRegen":"HP再生率: %1%","mpRegen":"MP再生率: %1%","paramRate":"%1: ×%2%","buffEffect":"%1: %2段階%3 (%4%)","elementRate":"%1有効度: %2%","actionPlus":"行動回数追加: +1回 (%1%)","xparamRate":"%1: %2%"}
+ */
+
+/*~struct~DetailSectionTitles:ja
+ * @param detail
+ * @text 解説
+ * @desc 解説セクションの見出しです。
+ * @default 【解説】
+ *
+ * @param removal
+ * @text 解除条件
+ * @desc 解除条件セクションの見出しです。
+ * @default 【解除条件】
+ *
+ * @param effect
+ * @text 主な効果
+ * @desc 効果セクションの見出しです。
+ * @default 【主な効果】
+ */
+
+/*~struct~BuffLevelTexts:ja
+ * @param up
+ * @text 上昇
+ * @desc バフ（能力値上昇）時の表記です。
+ * @default 上昇
+ *
+ * @param down
+ * @text 低下
+ * @desc デバフ（能力値低下）時の表記です。
+ * @default 低下
+ */
+
+/*~struct~StateListTexts:ja
+ * @param buffDesc
+ * @text バフ説明文
+ * @desc バフの説明テキストです（%1: 段階数, %2: 上昇/低下）。
+ * @default %1段階%2中
+ *
+ * @param noEffect
+ * @text 効果なし
+ * @desc 説明がない場合に表示するテキストです。
+ * @default 効果はありません。
+ */
+
+/*~struct~RemovalTexts:ja
+ * @param byDamage
+ * @text 被ダメージ時解除
+ * @desc 被ダメージ時の解除テキストです（%1: 確率%）。
+ * @default 被ダメージ時解除: %1%
+ *
+ * @param turnTiming
+ * @text ターン経過解除
+ * @desc ターン経過による解除テキストです（%1: 解除タイミング）。
+ * @default ターン経過で解除 (%1)
+ *
+ * @param battleEnd
+ * @text 戦闘終了時解除
+ * @desc 戦闘終了で自動解除される場合のテキストです。
+ * @default 戦闘終了で自動解除
+ *
+ * @param byWalking
+ * @text 歩行解除
+ * @desc マップ歩行で解除される場合のテキストです（%1: 歩数）。
+ * @default マップ歩行で解除 (%1歩)
+ *
+ * @param noRemoval
+ * @text 自動解除なし
+ * @desc 自動解除がない（永続）場合のテキストです。
+ * @default 自動解除なし（永続）
+ *
+ * @param timingAction
+ * @text 行動終了時
+ * @desc ターン経過タイミング（行動終了時）のテキストです。
+ * @default 行動終了時
+ *
+ * @param timingTurn
+ * @text ターン終了時
+ * @desc ターン経過タイミング（ターン終了時）のテキストです。
+ * @default ターン終了時
+ *
+ * @param buffTurn
+ * @text バフ判定タイミング
+ * @desc バフ・デバフのターン経過判定テキストです。
+ * @default ターン終了時に解除判定
+ */
+
+/*~struct~EffectTexts:ja
+ * @param none
+ * @text 効果なし
+ * @desc 特別な効果がない場合のテキストです。
+ * @default 特別な効果はありません
+ *
+ * @param restriction1
+ * @text 行動制約: 敵を無差別に攻撃
+ * @default 敵を無差別に攻撃
+ *
+ * @param restriction2
+ * @text 行動制約: 味方を攻撃
+ * @default 味方を攻撃
+ *
+ * @param restriction3
+ * @text 行動制約: 行動不能
+ * @default 行動不能
+ *
+ * @param hpRegen
+ * @text HP再生率
+ * @desc HP再生率のテキストです（%1: 増減値%）。
+ * @default HP再生率: %1%
+ *
+ * @param mpRegen
+ * @text MP再生率
+ * @desc MP再生率のテキストです（%1: 増減値%）。
+ * @default MP再生率: %1%
+ *
+ * @param paramRate
+ * @text 通常能力値倍率
+ * @desc 通常能力値の変動テキストです（%1: 能力値名, %2: 倍率%）。
+ * @default %1: ×%2%
+ *
+ * @param buffEffect
+ * @text バフ・デバフ効果
+ * @desc バフ・デバフ効果のテキストです（%1: 能力名, %2: 段階, %3: 上昇/低下, %4: 倍率%）。
+ * @default %1: %2段階%3 (%4%)
+ *
+ * @param elementRate
+ * @text 属性有効度
+ * @desc 属性有効度のテキストです（%1: 属性名, %2: 有効度%）。
+ * @default %1有効度: %2%
+ *
+ * @param actionPlus
+ * @text 行動回数追加
+ * @desc 行動回数追加のテキストです（%1: 確率%）。
+ * @default 行動回数追加: +1回 (%1%)
+ *
+ * @param xparamRate
+ * @text 追加能力値
+ * @desc 追加能力値のテキストです（%1: 能力名, %2: 増減値%）。
+ * @default %1: %2%
  */
 
 function Window_BattleTarget() {
@@ -136,6 +313,7 @@ function Window_BattleTarget() {
     const SPCMZ_DETAIL     = "SPCMZ_DETAIL";
     const SPCMZ_HIDE       = "SPCMZ_HIDE";
     const STATE_TURNS      = PARAMS.state_turns || "残り%ターン";
+    const TURNS_DISPLAY_MODE = PARAMS.turns_display_mode || "text";
     const EMPTY_TEXT       = PARAMS.empty_text || "なし";
     const TURNS_FONT_SIZE  = +(PARAMS.turns_font_size || "20");
     const TURNS_FONT_COLOR = PARAMS.turns_font_color || "255, 255, 50, 0.8";
@@ -151,25 +329,40 @@ function Window_BattleTarget() {
     const SHORTCUT_KEY     = RAW_KEY.toLowerCase();
 
     // -----------------------------------------------------
-    // プラグインパラメータ候補
+    // parameters
     // -----------------------------------------------------
-    const ARTM_DetailSectionTitles = {
+    const parseStruct = (paramJson, defaults) => {
+        try {
+            const parsed = paramJson ? JSON.parse(paramJson) : {};
+            const result = Object.assign({}, defaults);
+            for (const key of Object.keys(defaults)) {
+                if (parsed[key] !== undefined && parsed[key] !== "") {
+                    result[key] = parsed[key];
+                }
+            }
+            return result;
+        } catch (e) {
+            return defaults;
+        }
+    };
+
+    const DetailSectionTitles = parseStruct(PARAMS.detail_section_titles, {
         detail:  "【解説】",
         removal: "【解除条件】",
         effect:  "【主な効果】"
-    };
+    });
 
-    const ARTM_BuffLevelTexts = {
+    const BuffLevelTexts = parseStruct(PARAMS.buff_level_texts, {
         up:   "上昇",
         down: "低下"
-    };
+    });
 
-    const ARTM_StateListTexts = {
+    const StateListTexts = parseStruct(PARAMS.state_list_texts, {
         buffDesc: "%1段階%2中",
         noEffect: "効果はありません。"
-    };
+    });
 
-    const ARTM_RemovalTexts = {
+    const RemovalTexts = parseStruct(PARAMS.removal_texts, {
         byDamage:     "被ダメージ時解除: %1%",
         turnTiming:   "ターン経過で解除 (%1)",
         battleEnd:    "戦闘終了で自動解除",
@@ -178,9 +371,9 @@ function Window_BattleTarget() {
         timingAction: "行動終了時",
         timingTurn:   "ターン終了時",
         buffTurn:     "ターン終了時に解除判定"
-    };
+    });
 
-    const ARTM_EffectTexts = {
+    const EffectTexts = parseStruct(PARAMS.effect_texts, {
         none:            "特別な効果はありません",
         restriction1:    "敵を無差別に攻撃",
         restriction2:    "味方を攻撃",
@@ -192,7 +385,7 @@ function Window_BattleTarget() {
         elementRate:     "%1有効度: %2%",
         actionPlus:      "行動回数追加: +1回 (%1%)",
         xparamRate:      "%1: %2%"
-    };
+    });
 
     // -----------------------------------------------------
     // Input
@@ -674,7 +867,6 @@ function Window_BattleTarget() {
     // -----------------------------------------------------
     // Window_StateList
     // -----------------------------------------------------
-    const TURNS_DISPLAY_MODE = ""; // ★プラグインパラメータ候補
     const ICON_TURNS_OFFSET_X = -2;
     const ICON_TURNS_OFFSET_Y = -2;
 
@@ -902,12 +1094,12 @@ function Window_BattleTarget() {
             return item.message1.replace("%1", name);
         }
         if (item.paramId !== undefined) {
-            const typeText = item.level > 0 ? ARTM_BuffLevelTexts.up : ARTM_BuffLevelTexts.down;
-            return ARTM_StateListTexts.buffDesc
+            const typeText = item.level > 0 ? BuffLevelTexts.up : BuffLevelTexts.down;
+            return StateListTexts.buffDesc
                 .replace("%1", Math.abs(item.level))
                 .replace("%2", typeText);
         }
-        return ARTM_StateListTexts.noEffect;
+        return StateListTexts.noEffect;
     };
 
     // -----------------------------------------------------
@@ -1056,10 +1248,10 @@ function Window_BattleTarget() {
         }
         let y = 0;
         y = this.drawDetailText(y);
-        y = this.drawDetailSectionTitle(ARTM_DetailSectionTitles.removal, y);
+        y = this.drawDetailSectionTitle(DetailSectionTitles.removal, y);
         y = this.drawRemovalConditions(y);
         y += 4;
-        y = this.drawDetailSectionTitle(ARTM_DetailSectionTitles.effect, y);
+        y = this.drawDetailSectionTitle(DetailSectionTitles.effect, y);
         this.drawEffects(y);
     };
 
@@ -1092,7 +1284,7 @@ function Window_BattleTarget() {
     Window_BattleStateDetail.prototype.drawDetailText = function(y) {
         const lines = this.detailTextLines(this._item);
         if (lines.length === 0) return y;
-        y = this.drawDetailSectionTitle(ARTM_DetailSectionTitles.detail, y);
+        y = this.drawDetailSectionTitle(DetailSectionTitles.detail, y);
         const indent = 12;
         const tightLh = this.detailLineHeight();
         this.contents.fontSize = 20;
@@ -1105,7 +1297,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleStateDetail.prototype.drawRemovalConditions = function(y) {
-        const texts = ARTM_RemovalTexts;
+        const texts = RemovalTexts;
         const conditions = this.makeRemovalConditions(this._item);
         const indent = 12;
         const tightLh = this.detailLineHeight();
@@ -1134,7 +1326,7 @@ function Window_BattleTarget() {
 
     Window_BattleStateDetail.prototype.makeStateRemovalConditions = function(item) {
         const conditions = [];
-        const texts = ARTM_RemovalTexts;
+        const texts = RemovalTexts;
 
         if (item.removeByDamage) {
             conditions.push(texts.byDamage.replace("%1", item.chanceByDamage));
@@ -1152,7 +1344,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleStateDetail.prototype.makeBuffRemovalConditions = function(item) {
-        const texts = ARTM_RemovalTexts;
+        const texts = RemovalTexts;
         return [
             texts.buffTurn,
             texts.battleEnd
@@ -1160,7 +1352,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleStateDetail.prototype.formatTurnRemovalText = function(item) {
-        const texts = ARTM_RemovalTexts;
+        const texts = RemovalTexts;
         const timingMap = {
             1: texts.timingAction,
             2: texts.timingTurn
@@ -1170,7 +1362,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleStateDetail.prototype.drawEffects = function(y) {
-        const texts = ARTM_EffectTexts;
+        const texts = EffectTexts;
         const effects = this.makeEffects(this._item);
         const indent = 12;
         const tightLh = this.detailLineHeight();
@@ -1204,9 +1396,9 @@ function Window_BattleTarget() {
 
     Window_BattleStateDetail.prototype.makeRestrictionEffects = function(item) {
         const restrictionMap = {
-            1: ARTM_EffectTexts.restriction1,
-            2: ARTM_EffectTexts.restriction2,
-            4: ARTM_EffectTexts.restriction3
+            1: EffectTexts.restriction1,
+            2: EffectTexts.restriction2,
+            4: EffectTexts.restriction3
         };
         const text = restrictionMap[item.restriction];
         return text ? [text] : [];
@@ -1226,39 +1418,39 @@ function Window_BattleTarget() {
         if (trait.code === Game_BattlerBase.TRAIT_PARAM) {
             const paramName = TextManager.param(trait.dataId);
             const rate = Math.round(trait.value * 100);
-            return ARTM_EffectTexts.paramRate.replace("%1", paramName).replace("%2", rate);
+            return EffectTexts.paramRate.replace("%1", paramName).replace("%2", rate);
         }
         if (trait.code === Game_BattlerBase.TRAIT_XPARAM) {
             const value = Math.round(trait.value * 100);
             const sign = value > 0 ? `+${value}` : `${value}`;
 
-            if (trait.dataId === 7) return ARTM_EffectTexts.hpRegen.replace("%1", sign);
-            if (trait.dataId === 8) return ARTM_EffectTexts.mpRegen.replace("%1", sign);
+            if (trait.dataId === 7) return EffectTexts.hpRegen.replace("%1", sign);
+            if (trait.dataId === 8) return EffectTexts.mpRegen.replace("%1", sign);
 
             const name = this.xparamName(trait.dataId);
             if (name) {
-                return ARTM_EffectTexts.xparamRate.replace("%1", name).replace("%2", sign);
+                return EffectTexts.xparamRate.replace("%1", name).replace("%2", sign);
             }
         }
         if (trait.code === Game_BattlerBase.TRAIT_ELEMENT_RATE) {
             const elemName = $dataSystem.elements[trait.dataId] || "";
             const rate = Math.round(trait.value * 100);
-            return ARTM_EffectTexts.elementRate.replace("%1", elemName).replace("%2", rate);
+            return EffectTexts.elementRate.replace("%1", elemName).replace("%2", rate);
         }
         if (trait.code === Game_BattlerBase.TRAIT_ACTION_PLUS) {
             const chance = Math.round(trait.value * 100);
-            return ARTM_EffectTexts.actionPlus.replace("%1", chance);
+            return EffectTexts.actionPlus.replace("%1", chance);
         }
         return null;
     };
 
     Window_BattleStateDetail.prototype.makeBuffEffects = function(item) {
-        const texts = ARTM_EffectTexts;
+        const texts = EffectTexts;
         const target = this._target;
         const paramId = item.paramId;
         const paramName = TextManager.param(paramId);
         const level = item.level;
-        const typeText = level > 0 ? ARTM_BuffLevelTexts.up : ARTM_BuffLevelTexts.down;
+        const typeText = level > 0 ? BuffLevelTexts.up : BuffLevelTexts.down;
         const rate = (target && typeof target.paramBuffRate === "function")
             ? Math.round(target.paramBuffRate(paramId) * 100) 
             : 100;
