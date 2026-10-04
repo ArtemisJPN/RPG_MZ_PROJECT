@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
+// 1.5.0 セルサイズ指定（オプション2）に横列の指定を追加（最大54セル対応）
 // 1.4.0 条件ごとにモーションを変更できる機能を追加
 // 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
 // 1.2.2 1つ目のモーションで画像変更オプションが効かない不具合を修正
@@ -25,73 +26,84 @@
  *
  * @help ARTM_ActorMultiVictoryMZ.js
  *
- * バトル勝利時の勝利モーションを、詠唱、眠り、武器素振りなど
- * ゲーム内で使用されている他のモーションに変更することができます。
- * また、勝利2回→素振り1回→眠り など、回数指定も可能です。
+ * バトル勝利時のモーションを「詠唱」「眠り」「武器素振り」などの
+ * 別モーションへ自由に変更できるプラグインです。
+ * 「勝利2回 → 素振り1回 → 眠り（ループ）」のように、
+ * 複数のモーションを組み合わせた回数指定再生にも対応しています。
  *
- *-------------------------------------------------
- * 各アクターのメモ欄タグは以下の通りです。
- *-------------------------------------------------
- * ■基本設定
- * <AMV_MTYPE:1つ目のモーション設定,2つ目のモーション設定,…>
- * モーション設定は以下の記述方式です。
+ * ----------------------------------------------------------------------------
+ * ■ タグの基本構造
+ * ----------------------------------------------------------------------------
+ * アクターのメモ欄に以下の書式で記述します。
+ * モーション同士は半角パイプ '|' で区切って連結します。
  *
- *  モーション名^オプション2#オプション1,ループ回数;オプション3;
+ *   <AMV_MTYPE:モーション設定1|モーション設定2|…>
  *
- *  モーション名：既存の'walk'～'dead'
- *  オプション1 ：指定は任意。（次項のオプションを参照）
- *  オプション2 ：指定は任意。（次項のオプションを参照）
- *  　　　　　 　 ※オプション2は、オプション1の指定が必須です。
- *  ループ回数  ：１つの動作モーションを繰り返す回数。
- *  　　　　　 　 最後のモーションのループ回数には、必ず'0'を指定して下さい。
- *  オプション3 ：指定は任意。（次項のオプションを参照）
- *  　　　　　 　 ※オプション3は、オプション2の指定が必須です。
+ * 【各モーション設定の記述ルール】
+ *   モーション名^オプション2#オプション1,ループ回数;オプション3;
  *
- *  <AMV_MTYPE_SWn:ここはAMV_MTYPEと同じ設定を記載する>
- *  ・SW0001がONの時に限定する場合
- *    <AMV_MTYPE_SW1:abnormal,0>
+ *   ・モーション名 : 'walk' ～ 'dead'（※詳細はHelp_Motions.PNGを参照）
+ *   ・オプション1  : 画像変更（任意 / #画像名）
+ *   ・オプション2  : セルサイズ指定（任意 / ^RnCm ※オプション1必須）
+ *   ・オプション3  : スピード調整（任意 / 各コマの表示時間 ※オプション2必須）
+ *   ・ループ回数   : その動作を繰り返す回数（整数）
+ *                    ※最後のモーションは '0'（無限ループ）にしてください。
  *
- *  <AMV_MTYPE_STn:ここはAMV_MTYPEと同じ設定を記載する>
- *  ・ステート5の状態時に限定する場合
- *    <AMV_MTYPE_ST5:abnormal,0>
+ * ----------------------------------------------------------------------------
+ * ■ 条件分岐タグ（HP / スイッチ / ステート）
+ * ----------------------------------------------------------------------------
+ * 条件ごとにモーション設定を切り替えることができます。
+ * 記述形式は基本タグと同様です。
  *
- *  <AMV_MTYPE_HPn:ここはAMV_MTYPEと同じ設定を記載する>
- *  ・HP25%以下に限定する場合
- *    <AMV_MTYPE_HP25:abnormal,0>
+ *   ・スイッチ条件 : SW[n]がONの時に限定
+ *     <AMV_MTYPE_SW1:abnormal,0>
  *
- * ～使用例１～
- * ・勝利2回、素振り1回、のあとに眠りを繰り返す場合
- *   <AMV_MTYPE:victory,2,swing,1,sleep,0>
+ *   ・ステート条件 : ステート[n]が付加されている時に限定
+ *     <AMV_MTYPE_ST5:abnormal,0>
  *
- * 【補足事項】
- *   モーション名については同梱の「Help_Motions.PNG」をご参照下さい。
+ *   ・HP条件 : 残りHPが[n]%以下の時に限定
+ *     <AMV_MTYPE_HP25:abnormal,0>
  *
- * ■オプション
- * ・オプション1は以下の記述方式です。
- *  #画像名
+ * ----------------------------------------------------------------------------
+ * ■ 各オプションの詳細
+ * ----------------------------------------------------------------------------
+ * 【オプション1：画像切り替え】
+ *   #画像名
+ *   指定した画像ファイル（img/sv_actors/）へ一時的に切り替えます。
  *
- * ～使用例２～
- * ・画像"SF_Actor1_1"に切り替える場合
+ * 【オプション2：セルサイズ変更】
+ *   ^RnCm
+ *   縦(R)と横(C)のセルサイズ（枚数）を指定します。
+ *     R = 縦のセル数（行数：1～6の整数）
+ *     C = 横のセル数（列数：1～6の整数 ※ツクール標準素材は 3）
+ *   ※画像切り替え（オプション1）の併用が必須です。
+ *
+ * 【オプション3：コマ送りスピード（フレーム数）】
+ *   1枚目の時間;2枚目の時間;3枚目の時間; …（枚数分セミコロン区切り）
+ *   1コマごとの表示時間を「フレーム数（1フレーム＝1/60秒）」で指定します。
+ *   ※値が大きいほどコマがゆっくり表示されます。
+ *   ※セルサイズ変更（オプション2）の併用が必須です。
+ *
+ * ----------------------------------------------------------------------------
+ * ■ 使用例
+ * ----------------------------------------------------------------------------
+ * ～使用例１：複数モーションの連続再生～
+ * 勝利2回、素振り1回、のあとに眠りを繰り返す場合
+ *   <AMV_MTYPE:victory,2|swing,1|sleep,0>
+ *
+ * ～使用例２：画像の切り替え～
+ * 画像 "SF_Actor1_1" に切り替えて勝利モーションを繰り返す場合
  *   <AMV_MTYPE:victory#SF_Actor1_1,0>
  *
- * ・オプション2は以下の記述方式です。
- *  ^サイズ  ※2～6の整数
+ * ～使用例３：縦横セルサイズの拡張～
+ * 画像 "SF_Actor1_1" に切り替え、縦3行×横3列（計9枚）の画像を一方通行で1周表示する場合
+ *   <AMV_MTYPE:walk^R3C3#SF_Actor1_1,1>
  *
- * ～使用例３～
- * ・画像"SF_Actor1_1"に切り替えてwalk～chantの3x3=9枚の画像を
- *   一方通行で1周表示する場合
- *   <AMV_MTYPE:walk^3#SF_Actor1_1,1>
- *
- * ・オプション3は以下の記述方式です。
- *  1枚目の表示時間;2枚目の表示時間;3枚目の表示時間; …(枚数分の繰り返し）
- *
- * ～使用例４～
- * ・使用例３を徐々に早く表示するために、
- * 　スピード値を、12→11→ … →5→4 と変化させる場合
- *   <AMV_MTYPE:walk^3#SF_Actor1_1,1;12;11;10;9;8;7;6;5;4>
+ * ～使用例４：コマ送りスピードの可変指定～
+ * 使用例3を徐々に早く表示するため、スピード値を12→11→…→5→4と変化させる場合
+ *   <AMV_MTYPE:walk^R3C3#SF_Actor1_1,1;12;11;10;9;8;7;6;5;4>
  *
  * プラグインコマンドはありません。
- *
  */
  
 (() => {
@@ -106,9 +118,9 @@
     // regexp patterns
     //-----------------------------------------------------------------------------
     const REGEXP_PATTERNS = [
-        "^((?:" + VALUES + ").*,[0-9]+(?:;[0-9]+)*,)+$",
+        "^((?:" + VALUES + ").*,[0-9]+(?:;[0-9]+)*(?:\\||$))+$",
         "^([^\\" + DLMTR.size + "]+)\\" + DLMTR.size +
-            "([0-9]+)" + DLMTR.image + "(.+)$",
+            "R([1-6])C([1-9])" + DLMTR.image + "(.+)$",
         "^(?:\\d{1,2};).+$"
     ];
 
@@ -192,20 +204,22 @@
     function _makeParams(params) {
         const result = [];
         const regexp = new RegExp(REGEXP_PATTERNS[0]);
-        if (regexp.test(params + ",")) {
-            const args = params.split(",");
-            for (let i = 0; i < args.length; i++) {
-                if (i % 2 !== 0) { continue; }
-                result.push(_makeParam(args, i));
+        if (regexp.test(params)) {
+            const motions = params.split("|");
+            for (const motionStr of motions) {
+                const args = motionStr.split(",");
+                if (args.length >= 2) {
+                    result.push(_makeParam(args));
+                }
             }
         }
         return result;
     }
 
-    function _makeParam(args, index) {
+    function _makeParam(args) {
         const regexp = new RegExp(REGEXP_PATTERNS[2]);
-        const match = regexp.exec(args[index + 1]);
-        let loop = args[index + 1];
+        const match = regexp.exec(args[1]);
+        let loop = args[1];
         let speed = null;
         if (match) {
             const split = match[0].split(";");
@@ -213,7 +227,7 @@
             speed = split.map(Number);
         }
         return ({
-            "type": args[index],
+            "type": args[0],
             "loop": +loop,
             "speed": speed
         });
@@ -289,8 +303,9 @@
     const _Sprite_Actor_initMembers = Sprite_Actor.prototype.initMembers;
     Sprite_Actor.prototype.initMembers = function() {
         _Sprite_Actor_initMembers.call(this);
-        this._sizeCountArtm = 0;
-        this._sizeCountMaxArtm = 0;
+        this._sizeCountXArtm = 3;
+        this._currentCellArtm = 0;
+        this._maxCellsArtm = 0;
         this._indexArtm = -1;
         this._motionsArtm = null;
         this._bitmapsArtm = {};
@@ -318,6 +333,10 @@
 
     const _Sprite_Actor_updateFrame = Sprite_Actor.prototype.updateFrame;
     Sprite_Actor.prototype.updateFrame = function() {
+        if (this.checkResize_Artm()) {
+            this.updateFrameResize_Artm();
+            return;
+        }
         switch (this.phase_Artm()) {
             case "starting":
                 this._pattern = 0;
@@ -336,6 +355,19 @@
                 break;
         }
         _Sprite_Actor_updateFrame.call(this);
+    };
+
+    Sprite_Actor.prototype.updateFrameResize_Artm = function() {
+        Sprite_Battler.prototype.updateFrame.call(this);
+        const bitmap = this._mainSprite.bitmap;
+        if (bitmap) {
+            const col = this._currentCellArtm % this._sizeCountXArtm;
+            const row = Math.floor(this._currentCellArtm / this._sizeCountXArtm);
+            this._pattern = col % 3;
+            const cw = bitmap.width / 9;
+            const ch = bitmap.height / 6;
+            this._mainSprite.setFrame(col * cw, row * ch, cw, ch);
+        }
     };
 
     Sprite_Actor.prototype.updateFrame_Artm = function() {
@@ -373,24 +405,16 @@
     Sprite_Actor.prototype.updateMotionCount = function() {
         if (!this.checkResize_Artm()) {
             _Sprite_Actor_updateMotionCount.call(this);
-            return
+            return;
         }
         if (++this._motionCount >= this.motionSpeed_Artm()) {
-            if (this._pattern === 2) {
-                if (this.checkSizeEnd_Artm()) {
-                    this.updateMotionCountLooping_Artm();
-                } else if (this.existMotions_Artm()) {
+            if (++this._currentCellArtm >= this._maxCellsArtm) {
+                if (this.existMotions_Artm()) {
                     this.updateMotionCountLooped_Artm();
                 }
             }
-            this._pattern = (this._pattern + 1) % 3
             this._motionCount = 0;
         }
-    };
-
-    Sprite_Actor.prototype.updateMotionCountLooping_Artm = function() {
-        this._indexArtm = Math.min(this._indexArtm + 1, 17);
-        this._motion = this.motion_Artm();
     };
 
     Sprite_Actor.prototype.updateMotionCountLooped_Artm = function() {
@@ -398,13 +422,12 @@
         if (this.isMotionEnd(-1)) {
             this._motionsArtm.pattern = 4;
             this._motionsArtm.count = 0;
+            this._maxCellsArtm = 0;
             this._actor.nextPhase_Artm("processing");
         } else {
             this._motionsArtm.pattern = 4;
-            this._indexArtm = 0;
-            this._sizeCountArtm = this._sizeCountMaxArtm;
+            this._currentCellArtm = 0;
         }
-        this._motion = this.motion_Artm();
     };
 
     Sprite_Actor.prototype.changeMotion_Artm = function(typeI) {
@@ -433,12 +456,12 @@
         const regexp = new RegExp(pattern);
         const match = regexp.exec(type);
         if (match) {
-            if (+match[2] === (+match[2]).clamp(2, 6)) {
-                this._sizeCountArtm = +match[2];
-                this._sizeCountMaxArtm = +match[2];
-                this._actor.nextPhase_Artm("changing");
-            }
-            return match[1] + DLMTR.image + match[3];
+            this._sizeCountXArtm = +match[3];
+            this._maxCellsArtm = +match[2] * this._sizeCountXArtm;
+            this._currentCellArtm = 0;
+            this._motionCount = 0;
+            this._actor.nextPhase_Artm("changing");
+            return match[1] + DLMTR.image + match[4]; 
         }
         return type;
     };
@@ -448,11 +471,7 @@
     };
 
     Sprite_Actor.prototype.checkResize_Artm = function() {
-        return this.existMotions_Artm() && this._sizeCountArtm > 0;
-    };
-
-    Sprite_Actor.prototype.checkSizeEnd_Artm = function() {
-        return --this._sizeCountArtm > 0;
+        return this.existMotions_Artm() && this._maxCellsArtm > 0;
     };
 
     Sprite_Actor.prototype.checkSwing_Artm = function() {
@@ -478,9 +497,8 @@
     Sprite_Actor.prototype.motionSpeed_Artm = function() {
         const motionSpeed = this.motionSpeed();
         if (this._motionsArtm.speed) {
-            const times = this._indexArtm * 3;
-            const index = times + this._pattern;
-            return this._motionsArtm.speed[index] ?? motionSpeed;
+            return this._motionsArtm.speed[this._currentCellArtm]
+                   ?? motionSpeed;
         }
         return motionSpeed;
     };
