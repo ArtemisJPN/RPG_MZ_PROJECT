@@ -4,4 +4,4 @@
 - ステートの詳細情報を表示することが出来ます。
 - 「解除条件」などと言った、各タイトル文言はプラグインパラメータで変更可能です。
 - 残りターンの表示はテキストのほか、アイコンの右下に残ターンの数値を小さく表示するアイコンバッチ表示が可能です。
-<img width="814" height="623" alt="ステート画面" src="https://github.com/user-attachments/assets/1a47ad95-76e1-4857-9cd5-7b998134bdfc" />
+<img width="814" height="623" alt="ステート画面" src="https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_StatePopupCommandMZ/StateWindow.png" />
