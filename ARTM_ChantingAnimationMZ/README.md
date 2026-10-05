@@ -1,4 +1,5 @@
 # シームレス詠唱アニメーション表示プラグイン
+https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_ChantingAnimationMZ/ChantingAnime.png
 <br>
 スキル詠唱中、アクターや敵キャラに指定IDのアニメーションを途切れず滑らかにループ再生させるプラグインです。  <br>
 通常のループ処理と異なり、つなぎ目のカクつきがない自然な回転・発光演出を実現できます。
