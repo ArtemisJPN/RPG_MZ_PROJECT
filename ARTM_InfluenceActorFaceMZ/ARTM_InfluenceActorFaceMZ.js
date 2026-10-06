@@ -5,10 +5,11 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
-// 1.0.0 初版
-// 1.0.1 カンマ区切り以外のメモデータがある際にエラーとなる不備を修正
-// 1.0.2 優先高の顔画像が解除されると優先度低の顔画像が表示されない不備を修正
+// 1.1.1 競合対策のためメモ欄の書き換えを廃止し正規表現の走査方式に変更
 // 1.1.0 顔画像の事前ロード有無設定を追加, その他のパフォーマンス改善
+// 1.0.2 優先高の顔画像が解除されると優先度低の顔画像が表示されない不備を修正
+// 1.0.1 カンマ区切り以外のメモデータがある際にエラーとなる不備を修正
+// 1.0.0 初版
 // =================================================================
 /*:ja
  * @target MZ
@@ -77,59 +78,37 @@
     // ver.1.1.0 顔画像の事前ロード有無設定を追加
     const IS_PRELOAD = (_param["preLoad"] || "false").toLowerCase() === "true";
 
-    function getParamsByType(args) {
-        if ([TGTYPE.HP, TGTYPE.MP].includes(args[4])) {
-            args.push(Number(args[0] || "0") / 100);
-        } else if ([TGTYPE.ST].includes(args[4])) {
-            args.push(Number(args[0] || "0"));
-        } else {
-            return null;
-        }
-        return ({
-            "key"  :args[3] + args[4] + args[6],
-            "type" :args[4],
-            "value":args[6],
-            "name" :args[1],
-            "index":Number(args[2] || "0"),
-            "prior":args[5]
-        }); 
-    }
-
-    const _DataManager_extractMetadata = DataManager.extractMetadata;
-    DataManager.extractMetadata = function(data) {
-        let idx = 0;
-        let targets = "(";
-        TYPE.forEach(v => targets += v + "|");
-        targets = targets.substr(0, targets.length - 1) + ")";
-        const regexp = new RegExp(targets, "g");
-        data.note = data.note.replace(regexp, (v => {
-            return v + ("00" + idx++).slice(-2);
-        }));
-        _DataManager_extractMetadata.call(this, data);
-    };
-
     Game_Actor.prototype.getParamsWrap_Artm = function() {
+        const actorData = this.actor();
+        if (!actorData || !actorData.note) return [];
+
         const id = this.actorId();
-        const meta = this.actor().meta;
+        const reg = /<IAF_(HP|MP|ST):([0-9]+),([!-~]+),([0-9]+)>/g;
         const paramsList = [];
-        let prior = 0;
-        for (const key in meta) {
-            const type = key.slice(0, key.length - 2);
-            const args = ("" + meta[key]).match(/^[0-9]+,[!-~]+,[0-9]+$/g);
-            if (args) {
-                const params = getParamsByType(
-                    (args[0] + ',' + id + ',' + type + ',' + prior++).split(",")
-                );
-                paramsList.push(params);
-            }
+        let match, prior = 0;
+
+        while ((match = reg.exec(actorData.note)) !== null) {
+            const type = _PREF + match[1];
+            const rawVal = Number(match[2] || "0");
+            const calcValue = (type === TGTYPE.ST) ? rawVal : rawVal / 100;
+
+            paramsList.push({
+                key:   "" + id + type + calcValue,
+                type:  type,
+                value: calcValue,
+                name:  match[3],
+                index: Number(match[4] || "0"),
+                prior: prior++
+            });
         }
-        return paramsList.length > 0 ? paramsList : [{"value":null}];
+        return paramsList;
     };
 
     Game_Actor.prototype.getFaceInfoFirst_Artm = function() {
-        const priorFirst =
-            this._infoArtm.map(f => Number(f.prior)).sort((a, b) => a - b)[0];
-        return this._infoArtm.filter(f => f.prior === "" + priorFirst)[0];
+        if (!this._infoArtm || this._infoArtm.length === 0) return null;
+        return this._infoArtm.reduce((min, curr) => 
+            Number(curr.prior) < Number(min.prior) ? curr : min
+        );
     };
 
     Game_Actor.prototype.existFaceImages_Artm = function() {
@@ -147,19 +126,23 @@
     const _Game_Actor_faceName = Game_Actor.prototype.faceName;
     Game_Actor.prototype.faceName = function() {
         if (this.existFaceImages_Artm()) {
-            return this.getFaceInfoFirst_Artm().name;
-        } else {
-            return _Game_Actor_faceName.call(this);
+            const info = this.getFaceInfoFirst_Artm();
+            if (info && info.name) {
+                return info.name;
+            }
         }
+        return _Game_Actor_faceName.call(this);
     };
 
     const _Game_Actor_faceIndex = Game_Actor.prototype.faceIndex;
     Game_Actor.prototype.faceIndex = function() {
         if (this.existFaceImages_Artm()) {
-            return this.getFaceInfoFirst_Artm().index - 1;
-        } else {
-            return _Game_Actor_faceIndex.call(this);
+            const info = this.getFaceInfoFirst_Artm();
+            if (info && info.index !== undefined) {
+                return info.index - 1;
+            }
         }
+        return _Game_Actor_faceIndex.call(this);
     };
 
     function checkFaceChange(actor, params, match) {
@@ -182,10 +165,10 @@
 
     Game_Actor.prototype.checkFaceChange_Artm = function() {
         const paramsWrap = this.getParamsWrap_Artm();
-        let match, result;
         for (const params of paramsWrap) {
-            match = this.checkThreshold_Artm(params);
-            result = checkFaceChange(this, params, match);
+            if (!params || !params.type) continue;
+            const match = this.checkThreshold_Artm(params);
+            const result = checkFaceChange(this, params, match);
             if (!this._needsFaceChanging && result) {
                 this._needsFaceChanging = true;
             }
@@ -245,15 +228,15 @@
 
     Scene_Battle.prototype.initFaceParames_Artm = function(actor) {
         const paramsWrap = actor.getParamsWrap_Artm();
-        const actorId = actor.actorId();
         let key = actor.faceName();
-        Images[key] = ImageManager.loadFace(key);
-        if (paramsWrap[0]) {
-            for (const params of paramsWrap) {
+        if (key) {
+            Images[key] = ImageManager.loadFace(key);
+        }
+        for (const params of paramsWrap) {
+            if (params && params.name) {
                 key = params.name;
                 if (!(key in Images)) {
-                    const name = params.name;
-                    Images[key] = ImageManager.loadFace(name);
+                    Images[key] = ImageManager.loadFace(key);
                 }
             }
         }
@@ -312,7 +295,6 @@
         _Sprite_Gauge_updateTargetValue.call(this, value, maxValue);
         if (
             $gameParty.inBattle() &&
-            Object.keys(Images).length > 0 &&
             this._battler.isActor()
         ) {
             this._battler.checkFaceChange_Artm();
