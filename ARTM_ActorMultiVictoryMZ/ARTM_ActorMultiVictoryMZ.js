@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
+// 1.6.0 砂川赳様作 DynamicMotionMZ との競合対応
 // 1.5.0 セルサイズ指定（オプション2）に横列の指定を追加（最大54セル対応）
 // 1.4.0 条件ごとにモーションを変更できる機能を追加
 // 1.3.0 オプション2有効時に、表示スピードを変更できる機能を追加
@@ -26,6 +27,15 @@
  *
  * @help ARTM_ActorMultiVictoryMZ.js
  *
+ * ----------------------------------------------------------------------------
+ * ■ 導入時の注意
+ * ----------------------------------------------------------------------------
+ * 砂川赳様作 DynamicMotionMZ と 併用する場合は必ず、
+ * プラグインリスト画面で DynamicMotionMZ より下に配置して下さい。
+ *
+ * ----------------------------------------------------------------------------
+ * ■ 機能説明
+ * ----------------------------------------------------------------------------
  * バトル勝利時のモーションを「詠唱」「眠り」「武器素振り」などの
  * 別モーションへ自由に変更できるプラグインです。
  * 「勝利2回 → 素振り1回 → 眠り（ループ）」のように、
@@ -108,6 +118,9 @@
  
 (() => {
 
+    // ver1.6
+    const HAS_DYNAMIC_MOTION = PluginManager._scripts.includes("NRP_DynamicMotionMZ");
+    //
     const STACK_WK = [];
     const TAG_BASE  = "AMV_MTYPE";
     const DLMTR = {"size": "^", "image": "#"};
@@ -256,6 +269,12 @@
         if (this instanceof Game_Actor) {
             this._motionsArtm = undefined;
             this.nextPhase_Artm("none");
+            // ver1.6
+            if (HAS_DYNAMIC_MOTION) {
+                if (this._motions && Array.isArray(this._motions)) {
+                    this._motions = [];
+                }
+            }
         }
         _Game_Battler_onBattleEnd.call(this);
     };
@@ -284,9 +303,20 @@
 
     const _Game_Actor_performVictory = Game_Actor.prototype.performVictory;
     Game_Actor.prototype.performVictory = function() {
+        // ver1.6
+        if (HAS_DYNAMIC_MOTION) {
+            if (this._tempBattlerImage !== undefined) {
+                this._tempBattlerImage = undefined;
+            }
+        }
+        //
         _Game_Actor_performVictory.call(this);
         const params = getParams(this);
         if (this.canMove() && params.length > 0) {
+            // ver1.6
+            if (HAS_DYNAMIC_MOTION) {
+                this._noReturn = false;
+            }
             this.requestMotion(params[0].type);
             this.setParams_Artm(params);       
             this.nextPhase_Artm("starting");
@@ -342,6 +372,20 @@
                 this._pattern = 0;
                 this._motionsArtm = this._actor._motionsArtm;
                 this._actor.nextPhase_Artm("processing");
+                // ver1.6
+                if (HAS_DYNAMIC_MOTION) {
+                    this._motionDuration = undefined;
+                    this._motionPattern = undefined;
+                    this._motionStartPattern = undefined;
+                    this._dynamicMotionDuration = 0;
+                    this.rotation = 0;
+                    this.opacity = 255;
+                    this.scale.x = 1;
+                    this.scale.y = 1;
+                    this.mainSprite().anchor.y = 1;
+                    this.mainSprite().setBlendColor([0, 0, 0, 0]);
+                }
+                //
                 if (this.existMotion_Artm()) {
                     break;
                 }
