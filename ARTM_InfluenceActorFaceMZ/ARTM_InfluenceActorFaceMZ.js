@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
 // [Version]
+// 1.2.0 TPのトリガーを追加
 // 1.1.1 競合対策のためメモ欄の書き換えを廃止し正規表現の走査方式に変更
 // 1.1.0 顔画像の事前ロード有無設定を追加, その他のパフォーマンス改善
 // 1.0.2 優先高の顔画像が解除されると優先度低の顔画像が表示されない不備を修正
@@ -18,9 +19,10 @@
  *
  * @help ARTM_InfluenceActorFaceMZ.js
  * バトル中、アクターの状態に基づきフェイス画像を変更します。
- * 以下3つのトリガーが使用できます。
- *       HP…アクターの現在HPが指定値以下になった時
- *       MP…アクターの現在MPが指定値以下になった時
+ * 以下4つのトリガーが使用できます。
+ *       HP…アクターの現在HPが指定%以下になった時
+ *       MP…アクターの現在MPが指定%以下になった時
+ *       TP…アクターの現在TPが指定TP値以上になった時
  * ステート…アクターが指定値のステート状態になった時
  *
  *-------------------------------------------------
@@ -35,6 +37,11 @@
  * <IAF_MP:(MPの基準),(顔画像名),(顔画像インデックス)>
  *  ☆MP10%以下で"Actor4"顔画像の2番目を指定する場合
  *    <IAF_MP:10,Actor4,2>
+ *
+ * ★TPのトリガー（指定値以上で変化）
+ * <IAF_TP:(TPの基準),(顔画像名),(顔画像インデックス)>
+ *  ☆TP100以上で"Actor4"顔画像の3番目を指定する場合
+ *    <IAF_TP:100,Actor4,3>
  *
  * ★ステートのトリガー
  * <IAF_ST:(ステートID),(顔画像名),(顔画像インデックス)>
@@ -71,36 +78,36 @@
 (() => {
 
     const _PREF = "IAF_";
-    const TYPE = ["HP", "MP", "ST"].map(v => _PREF + v);
-    const TGTYPE = {"HP":TYPE[0], "MP":TYPE[1], "ST":TYPE[2]};
+    const TYPE = ["HP", "MP", "TP", "ST"].map(v => _PREF + v);
+    const TGTYPE = {"HP":TYPE[0], "MP":TYPE[1], "TP":TYPE[2], "ST":TYPE[3]};
+    const PARAMS = PluginManager.parameters("ARTM_InfluenceActorFaceMZ");
+    const IS_PRELOAD = (PARAMS["preLoad"] || "false").toLowerCase() === "true";
     let Images = {};
-    const _param = PluginManager.parameters("ARTM_InfluenceActorFaceMZ");
-    // ver.1.1.0 顔画像の事前ロード有無設定を追加
-    const IS_PRELOAD = (_param["preLoad"] || "false").toLowerCase() === "true";
 
     Game_Actor.prototype.getParamsWrap_Artm = function() {
+        if (this._cachedParamsWrap_Artm) {
+            return this._cachedParamsWrap_Artm;
+        }
         const actorData = this.actor();
         if (!actorData || !actorData.note) return [];
-
         const id = this.actorId();
-        const reg = /<IAF_(HP|MP|ST):([0-9]+),([!-~]+),([0-9]+)>/g;
+        const reg = /<IAF_(HP|MP|TP|ST):([0-9]+),([!-~]+),([0-9]+)>/g;
         const paramsList = [];
         let match, prior = 0;
-
         while ((match = reg.exec(actorData.note)) !== null) {
             const type = _PREF + match[1];
             const rawVal = Number(match[2] || "0");
-            const calcValue = (type === TGTYPE.ST) ? rawVal : rawVal / 100;
-
+            const calVal = [TGTYPE.HP, TGTYPE.MP].includes(type) ? rawVal / 100 : rawVal;
             paramsList.push({
-                key:   "" + id + type + calcValue,
+                key:   "" + id + type + calVal,
                 type:  type,
-                value: calcValue,
+                value: calVal,
                 name:  match[3],
                 index: Number(match[4] || "0"),
                 prior: prior++
             });
         }
+        this._cachedParamsWrap_Artm = paramsList;
         return paramsList;
     };
 
@@ -120,7 +127,6 @@
         _Game_Actor_initMembers.call(this);
         this._needsFaceChanging = false;
         this._infoArtm = [];
-        this._infoArtmSave = [];
     };
 
     const _Game_Actor_faceName = Game_Actor.prototype.faceName;
@@ -179,9 +185,11 @@
         let match;
         if (params.type === TGTYPE.HP) {
             match = this.hp <= (this.mhp * params.value);
-        } else if (params.type === TGTYPE.MP){
+        } else if (params.type === TGTYPE.MP) {
             match = this.mp <= (this.mmp * params.value);
-        } else if (params.type === TGTYPE.ST){
+        } else if (params.type === TGTYPE.TP) {
+            match = this.tp >= params.value;
+        } else if (params.type === TGTYPE.ST) {
             match = this.isStateAffected(params.value);
         } else {
             match = false;
@@ -260,7 +268,6 @@
         const targets =
             [SceneManager._scene._statusWindow, SceneManager._scene._actorWindow];
         const key = actor.faceName();
-        // ver.1.1.0 顔画像の事前ロード有無設定を追加
         const bitmap = IS_PRELOAD ? Images[key] : ImageManager.loadFace(key);
         const fnc = drawFaceCustom;
         bitmap.addLoadListener(fnc.bind(this, bitmap, actor, targets));
@@ -308,11 +315,14 @@
     Sprite_StateIcon.prototype.updateIcon = function() {
         _Sprite_StateIcon_updateIcon.call(this);
         if (
-            $gameParty.inBattle() && 
-            this._battler.isActor() &&
-            this._battler._needsFaceChanging
+            $gameParty.inBattle() &&
+            this._battler && 
+            this._battler.isActor()
         ) {
-            preparePartyRefreshMain(this._battler);
+            this._battler.checkFaceChange_Artm(); // 先に判定を更新する
+            if (this._battler._needsFaceChanging) {
+                preparePartyRefreshMain(this._battler);
+            }
         }
     };
 
