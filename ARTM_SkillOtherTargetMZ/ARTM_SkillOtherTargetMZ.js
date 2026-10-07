@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
+// 1.2.0 他プラグインとの競合対応
 // 1.1.0 対象選択時の表示・操作不具合の修正、内部処理の最適化
 // 1.0.0 初版
 // ====================================================
@@ -16,6 +17,9 @@
  * @help ARTM_SkillOtherTargetMZ
  * スキルの対象範囲から「使用者（詠唱者）自身」を除外します。
  * メニュー画面および戦闘画面の両方に対応しています。
+ *
+ * ツクールMZのプラグインリスト画面で、
+ * 必ずメニュー関連の他プラグインより下に配置してください。
  *
  * ----------------------------------------------------------------------------
  * 使い方
@@ -40,17 +44,30 @@
  * ※自分以外の対象が1人も生存していない場合、スキルは使用不可になります。
  * ※プラグインコマンドはありません。
  *
- * ----------------------------------------------------------------------------
- * 利用規約
- * ----------------------------------------------------------------------------
- * MITライセンスのもとで公開されています。
- * 商用・非商用問わず自由にご利用いただけます。
  */
 
 (() => {
     "use strict";
 
     const TAG_NAME = "SOT_STATE";
+
+    //-----------------------------------------------------------------------------
+    // function
+    //-----------------------------------------------------------------------------
+    function getOperatingActor() {
+        if ($gameParty.inBattle()) {
+            if (typeof BattleManager.actor === "function" && BattleManager.actor()) {
+                return BattleManager.actor();
+            }
+            return BattleManager._currentActor || null;
+        } else {
+            const scene = SceneManager._scene;
+            if (scene && typeof scene.user === "function") {
+                return scene.user();
+            }
+            return null;
+        }
+    }
 
     //-----------------------------------------------------------------------------
     // Game_Temp
@@ -123,8 +140,7 @@
     // Window_MenuActor
     //-----------------------------------------------------------------------------
     Window_MenuActor.prototype.targetMembersCustom = function() {
-        const scene = SceneManager._scene;
-        const user = scene.user ? scene.user() : null;
+        const user = getOperatingActor();
         return $gameParty.members().filter(m => m !== user);
     };
 
@@ -145,7 +161,7 @@
     };
 
     //-----------------------------------------------------------------------------
-    // Scene_ItemBase（メニュー画面）
+    // Scene_ItemBase
     //-----------------------------------------------------------------------------
     const _Scene_ItemBase_showActorWindow = Scene_ItemBase.prototype.showActorWindow;
     Scene_ItemBase.prototype.showActorWindow = function() {
@@ -195,7 +211,7 @@
     // Window_BattleStatus
     //-----------------------------------------------------------------------------
     Window_BattleStatus.prototype.targetMembersCustom = function() {
-        const subject = BattleManager._currentActor;
+        const subject = getOperatingActor();
         return $gameParty.battleMembers().filter(bm => bm !== subject);
     };
 
@@ -215,15 +231,32 @@
         return _Window_BattleStatus_actor.call(this, index);
     };
 
+    const _Window_BattleStatus_itemRect = Window_BattleStatus.prototype.itemRect;
+    Window_BattleStatus.prototype.itemRect = function(index) {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
+            const max = this.maxItems();
+            if (index >= max) {
+                return new Rectangle(0, 0, 0, 0);
+            }
+        }
+        return _Window_BattleStatus_itemRect.call(this, index);
+    };
+
     //-----------------------------------------------------------------------------
     // Scene_Battle
     //-----------------------------------------------------------------------------
+    Scene_Battle.prototype.resetExceptUserArtm = function() {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
+            $gameTemp._isBattleExceptUserArtm = false;
+            if (this._statusWindow) {
+                this._statusWindow.refresh();
+            }
+        }
+    };
+
     const _Scene_Battle_startActorInput = Scene_Battle.prototype.startActorInput;
     Scene_Battle.prototype.startActorInput = function() {
-        if ($gameTemp._isBattleExceptUserArtm) {
-            $gameTemp._isBattleExceptUserArtm = false;
-            this._statusWindow.refresh();
-        }
+        this.resetExceptUserArtm();
         _Scene_Battle_startActorInput.call(this);
     };
 
@@ -239,10 +272,17 @@
             }
             $gameTemp._isBattleExceptUserArtm = false;
             this._statusWindow.refresh();
-            this._actorWindow.hide();
-            this._skillWindow.hide();
-            this._itemWindow.hide();
-            this.selectNextCommand();
+            const originalSetTarget = action ? action.setTarget : null;
+            if (action) {
+                action.setTarget = function() {};
+            }
+            try {
+                _Scene_Battle_onActorOk.call(this);
+            } finally {
+                if (action && originalSetTarget) {
+                    action.setTarget = originalSetTarget;
+                }
+            }
             return;
         }
         _Scene_Battle_onActorOk.call(this);
@@ -250,20 +290,22 @@
 
     const _Scene_Battle_onActorCancel = Scene_Battle.prototype.onActorCancel;
     Scene_Battle.prototype.onActorCancel = function() {
-        if ($gameTemp._isBattleExceptUserArtm) {
-            $gameTemp._isBattleExceptUserArtm = false;
-            this._statusWindow.refresh();
-        }
+        this.resetExceptUserArtm();
         _Scene_Battle_onActorCancel.call(this);
     };
 
     const _Scene_Battle_commandSkill = Scene_Battle.prototype.commandSkill;
     Scene_Battle.prototype.commandSkill = function() {
-        if ($gameTemp._isBattleExceptUserArtm) {
-            $gameTemp._isBattleExceptUserArtm = false;
-            this._statusWindow.refresh();
-        }
+        this.resetExceptUserArtm();
         _Scene_Battle_commandSkill.call(this);
+    };
+
+    const _Scene_Battle_changeInputWindow = Scene_Battle.prototype.changeInputWindow;
+    Scene_Battle.prototype.changeInputWindow = function() {
+        if (this._actorWindow && !this._actorWindow.active) {
+            this.resetExceptUserArtm();
+        }
+        _Scene_Battle_changeInputWindow.call(this);
     };
 
     const _Scene_Battle_onSkillOk = Scene_Battle.prototype.onSkillOk;
@@ -283,11 +325,16 @@
             this.onSelectAction();
             return;
         }
-        if ($gameTemp._isBattleExceptUserArtm) {
-            $gameTemp._isBattleExceptUserArtm = false;
-            this._statusWindow.refresh();
-        }
+        this.resetExceptUserArtm();
         _Scene_Battle_onSkillOk.call(this);
+    };
+
+    const _Scene_Battle_terminate = Scene_Battle.prototype.terminate;
+    Scene_Battle.prototype.terminate = function() {
+        if ($gameTemp) {
+            $gameTemp._isBattleExceptUserArtm = false;
+        }
+        _Scene_Battle_terminate.call(this);
     };
 
 })();
