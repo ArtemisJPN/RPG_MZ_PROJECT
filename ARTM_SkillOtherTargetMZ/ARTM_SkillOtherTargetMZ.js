@@ -5,320 +5,261 @@
 // http://opensource.org/licenses/mit-license.php
 // -------------
 // [Version]
+// 1.1.0 対象選択時の表示・操作不具合の修正、内部処理の最適化
 // 1.0.0 初版
 // ====================================================
 /*:ja
  * @target MZ
- * @plugindesc スキル範囲を詠唱者以外に変更するMZ専用プラグイン
+ * @plugindesc スキルの対象から「使用者自身」を除外するプラグイン
  * @author Artemis
  *
  * @help ARTM_SkillOtherTargetMZ
- * スキル範囲を詠唱者以外に変更するMZ専用プラグインです。
+ * スキルの対象範囲から「使用者（詠唱者）自身」を除外します。
+ * メニュー画面および戦闘画面の両方に対応しています。
  *
- *-------------------------------------------------
- * メモ欄タグは以下の通りです。
- *-------------------------------------------------
- * ★スキルのメモ欄任意行に下記タグを記述して下さい。
+ * ----------------------------------------------------------------------------
+ * 使い方
+ * ----------------------------------------------------------------------------
+ * 対象スキルのメモ欄に、以下のタグを記述してください。
+ *
  *   <SOT_STATE:VALID>
- *   上記記述があるスキルは、範囲が下記の通りに変更されます。
- *   ☆味方単体・・・詠唱者以外の味方を選択し対象とする（敵の場合は味方ランダム）
- *   ☆味方全体・・・詠唱者以外の味方全員を対象とする
- *   ☆敵味方全体・・詠唱者以外の敵味方全員を対象とする
  *
- * プラグインコマンドはありません。
+ * ----------------------------------------------------------------------------
+ * 範囲ごとの挙動変化
+ * ----------------------------------------------------------------------------
+ * 【味方単体】
+ *   ・アクター：使用者以外の味方を選択可能（使用者はリストから除外）
+ *   ・エネミー：使用者以外の味方からランダムに対象を決定
  *
+ * 【味方全体】
+ *   ・使用者以外の味方全員が対象になります。
+ *
+ * 【敵味方全体】
+ *   ・使用者以外の敵・味方全員が対象になります。
+ *
+ * ※自分以外の対象が1人も生存していない場合、スキルは使用不可になります。
+ * ※プラグインコマンドはありません。
+ *
+ * ----------------------------------------------------------------------------
+ * 利用規約
+ * ----------------------------------------------------------------------------
+ * MITライセンスのもとで公開されています。
+ * 商用・非商用問わず自由にご利用いただけます。
  */
- 
+
 (() => {
+    "use strict";
 
     const TAG_NAME = "SOT_STATE";
-    const TAG_VALUE = "VALID";
 
+    //-----------------------------------------------------------------------------
+    // Game_Temp
+    //-----------------------------------------------------------------------------
     const _Game_Temp_initialize = Game_Temp.prototype.initialize;
     Game_Temp.prototype.initialize = function() {
         _Game_Temp_initialize.call(this);
-        this._isExceptSOT = false;
-        this._statesSOT = [false, false, false, false];
-        this._listSOT = [];
+        this._isBattleExceptUserCustom = false;
+        this._isMenuExceptUserCustom = false;
     };
 
-    Game_Temp.prototype.getExceptSOT = function() {
-        return !!this._isExceptSOT;
-    };
-
-    Game_Temp.prototype.setExceptSOT = function(state) {
-        this._isExceptSOT = state;
-    };
-
-    Game_Temp.prototype.getStatesSOT = function(index) {
-        return !!this._statesSOT[index];
-    };
-
-    Game_Temp.prototype.setStatesSOT = function(index, state) {
-        this._statesSOT[index] = state;
-    };
-
-    Game_Temp.prototype.listSOT = function() {
-        return this._listSOT;
-    };
-
-    Game_Temp.prototype.doListExceptSOT = function(except) {
-        this._listSOT = this._listSOT.filter(v => v !== except);
-        if (this._listSOT.length === 0) {
-            this.setStatesSOT(1, false);
-        }
-    };
-
-    Game_Action.prototype.isSOT = function() {
-        return(
-            DataManager.isSkill(this.item()) &&
-            this.item().meta[TAG_NAME]
-        );
+    //-----------------------------------------------------------------------------
+    // Game_Action
+    //-----------------------------------------------------------------------------
+    Game_Action.prototype.isSkillCustom = function() {
+        return DataManager.isSkill(this.item()) && !!this.item().meta[TAG_NAME];
     };
 
     const _Game_Action_makeTargets = Game_Action.prototype.makeTargets;
     Game_Action.prototype.makeTargets = function() {
         const subject = this.subject();
-        const isSOT = this.isSOT();
-        let targets = this.makeTargetsSOT(subject, isSOT);
-        if (!isSOT) {
-            return targets
+        const isCustom = this.isSkillCustom();
+        let targets = _Game_Action_makeTargets.call(this);
+
+        if (!isCustom) {
+            return targets;
         } else if (!this.isForUser() && this.isForOne()) {
-            targets = this.makeTargetsProcSOT(targets);
+            return this.makeTargetsCustom(targets);
         } else if (this.isForAll()) {
-            targets = targets.filter(t => {
-                return t !== subject;
-            }, this);
-        } else {
-            targets = [];
-        }
-        return targets
-    };
-
-    Game_Action.prototype.makeTargetsSOT = function(subject, isSOT) {
-        let targets, prevExcept, members, index;
-        if (!!isSOT && 
-            $gameTemp.getStatesSOT(1) &&
-            $gameTemp.listSOT().includes(subject)) {
-             prevExcept = $gameTemp.getExceptSOT();
-             $gameTemp.setExceptSOT(false);
-             members = $gameParty.members();
-             index = members.indexOf(subject);
-             $gameTemp.setExceptSOT(true);
-             $gameTemp.doListExceptSOT(subject);
-             if (index < this._targetIndex) {
-                 this._targetIndex--;
-             }
-             targets = _Game_Action_makeTargets.call(this);
-             $gameTemp.setExceptSOT(prevExcept);
-        } else {
-            targets = _Game_Action_makeTargets.call(this);
-        }
-        return targets;
-   };
-
-    Game_Action.prototype.makeTargetsProcSOT = function(targets) {
-        if (this.friendsUnit()._actors) {
-            return this.makeTargetsActorProcSOT() || targets;
-        } else if (this.friendsUnit()._enemies) {
-            return this.makeTargetsEnemyProcSOT();
+            return targets.filter(t => t !== subject);
         } else {
             return [];
         }
-    }
+    };
 
-    Game_Action.prototype.makeTargetsActorProcSOT = function() {
-        return null;
-    }
-
-    Game_Action.prototype.makeTargetsEnemyProcSOT = function() {
-        const unit = this.friendsUnit();
-        const subject = this.subject()
-        const enemiesSave = [...unit._enemies];
-        let targets;
-        unit._enemies = enemiesSave.filter(a => {
-            return a !== subject;
-        });
-        targets = [unit.randomTarget()]
-        unit._enemies = enemiesSave
-        return targets;
-    }
-
-    const _Game_Party_battleMembers = Game_Party.prototype.battleMembers;
-    Game_Party.prototype.battleMembers = function() {
-        const members = _Game_Party_battleMembers.call(this);
-        if ($gameTemp.getExceptSOT()) {
-            let subject;
-            if ($gameTemp.getStatesSOT(0)) {
-                subject = BattleManager._currentActor;
+    Game_Action.prototype.makeTargetsCustom = function(targets) {
+        const subject = this.subject();
+        if (targets.includes(subject)) {
+            const unit = this.friendsUnit();
+            const aliveExceptSubject = unit.aliveMembers().filter(m => m !== subject);
+            if (aliveExceptSubject.length > 0) {
+                return [aliveExceptSubject[Math.randomInt(aliveExceptSubject.length)]];
             } else {
-                subject = BattleManager._subject;
+                return [];
             }
-            return(
-                !subject ? members :
-                members.filter(bm => bm !== subject)
-            );
         }
-        return members;
+        return targets;
     };
 
-    const _Game_Party_allMembers = Game_Party.prototype.allMembers;
-    Game_Party.prototype.allMembers = function() {
-        const members = _Game_Party_allMembers.call(this);
-        if ($gameTemp.getStatesSOT(2)) {
-            const scene = SceneManager._scene;
-            const actor = scene._statusWindow._actor;
-            return members.filter(t => t !== actor);
+    //-----------------------------------------------------------------------------
+    // Game_BattlerBase
+    //-----------------------------------------------------------------------------
+    const _Game_BattlerBase_meetsSkillConditions = Game_BattlerBase.prototype.meetsSkillConditions;
+    Game_BattlerBase.prototype.meetsSkillConditions = function(skill) {
+        if (skill.meta[TAG_NAME]) {
+            const action = new Game_Action(this);
+            action.setItemObject(skill);
+            if (action.isForFriend()) {
+                const unit = this.friendsUnit();
+                const aliveOthers = unit.aliveMembers().filter(m => m !== this);
+                if (aliveOthers.length === 0) {
+                    return false;
+                }
+            }
         }
-        return members;
+        return _Game_BattlerBase_meetsSkillConditions.call(this, skill);
     };
 
-    const _Spriteset_Battle_updateActors = Spriteset_Battle.prototype.updateActors;
-    Spriteset_Battle.prototype.updateActors = function() {
-        const prevExcept = $gameTemp.getExceptSOT();
-        $gameTemp.setExceptSOT(false);
-        _Spriteset_Battle_updateActors.call(this);
-        $gameTemp.setExceptSOT(prevExcept);
+    //-----------------------------------------------------------------------------
+    // Window_MenuActor
+    //-----------------------------------------------------------------------------
+    Window_MenuActor.prototype.targetMembersCustom = function() {
+        const scene = SceneManager._scene;
+        const user = scene.user ? scene.user() : null;
+        return $gameParty.members().filter(m => m !== user);
     };
 
+    const _Window_MenuActor_maxItems = Window_MenuActor.prototype.maxItems;
+    Window_MenuActor.prototype.maxItems = function() {
+        if ($gameTemp._isMenuExceptUserCustom) {
+            return this.targetMembersCustom().length;
+        }
+        return _Window_MenuActor_maxItems.call(this);
+    };
+
+    const _Window_MenuActor_actor = Window_MenuActor.prototype.actor;
+    Window_MenuActor.prototype.actor = function(index) {
+        if ($gameTemp._isMenuExceptUserCustom) {
+            return this.targetMembersCustom()[index];
+        }
+        return _Window_MenuActor_actor.call(this, index);
+    };
+
+    //-----------------------------------------------------------------------------
+    // Scene_ItemBase（メニュー画面）
+    //-----------------------------------------------------------------------------
     const _Scene_ItemBase_showActorWindow = Scene_ItemBase.prototype.showActorWindow;
     Scene_ItemBase.prototype.showActorWindow = function() {
-        if (DataManager.isSkill(this.item()) &&
-            this.item().meta[TAG_NAME]) {
-             $gameTemp.setStatesSOT(2, true);
-             this._actorWindow.refresh();
+        const item = this.item();
+        if (DataManager.isSkill(item) && item.meta[TAG_NAME]) {
+            $gameTemp._isMenuExceptUserCustom = true;
+            this._actorWindow.refresh();
+        } else {
+            $gameTemp._isMenuExceptUserCustom = false;
+            this._actorWindow.refresh();
         }
         _Scene_ItemBase_showActorWindow.call(this);
     };
 
     const _Scene_ItemBase_hideActorWindow = Scene_ItemBase.prototype.hideActorWindow;
     Scene_ItemBase.prototype.hideActorWindow = function() {
-        if ($gameTemp.getStatesSOT(2)) {
-            $gameTemp.setStatesSOT(2, false);
+        const needRefresh = $gameTemp._isMenuExceptUserCustom;
+        $gameTemp._isMenuExceptUserCustom = false;
+        if (needRefresh) {
+            this._actorWindow.refresh();
         }
         _Scene_ItemBase_hideActorWindow.call(this);
     };
 
-    const _Game_BattlerBase_meetsSkillConditions = Game_BattlerBase.prototype.meetsSkillConditions;
-    Game_BattlerBase.prototype.meetsSkillConditions = function(skill) {
-        if (skill.meta[TAG_NAME]) {
-            let length;
-            if ($gameParty.inBattle()) {
-                const prevState = $gameTemp.getStatesSOT(0);
-                const prevExcept =$gameTemp.getExceptSOT()
-                $gameTemp.setStatesSOT(0, true);
-                $gameTemp.setExceptSOT(true);
-                length = $gameParty.battleMembers().length;
-                $gameTemp.setStatesSOT(0, prevState);
-                $gameTemp.setExceptSOT(prevExcept);
-            } else {
-                const prevState = $gameTemp.getStatesSOT(2);
-                $gameTemp.setStatesSOT(2, true);
-                length = $gameParty.allMembers().length;
-                $gameTemp.setStatesSOT(2, prevState);
+    const _Scene_ItemBase_itemTargetActors = Scene_ItemBase.prototype.itemTargetActors;
+    Scene_ItemBase.prototype.itemTargetActors = function() {
+        const item = this.item();
+        if (DataManager.isSkill(item) && item.meta[TAG_NAME]) {
+            const action = new Game_Action(this.user());
+            action.setItemObject(item);
+            if (!action.isForFriend()) {
+                return [];
             }
-            return length > 0;
-        }
-        return _Game_BattlerBase_meetsSkillConditions.call(this, skill);
-    };
-
-    const _Scene_Battle_onActorOk = Scene_Battle.prototype.onActorOk;
-    Scene_Battle.prototype.onActorOk = function() {
-        if ($gameTemp.getExceptSOT()) {
-            $gameTemp.setExceptSOT(false);
-            const members = $gameParty.battleMembers();
-            const actor = BattleManager.actor();
-            const index = members.indexOf(actor);
-            $gameTemp.setStatesSOT(1, true);
-            $gameTemp.listSOT().push(actor);
-            if (!$gameTemp.getStatesSOT(3)) {
-                if (index <= this._actorWindow.index()) {
-                    this._actorWindow._index++;
-                }
-            } else {
-                $gameTemp.setStatesSOT(3, false);
+            const members = this._actorWindow.targetMembersCustom();
+            if (action.isForAll()) {
+                return members;
+            }
+            if (action.isForOne()) {
+                const target = members[this._actorWindow.index()];
+                return target ? [target] : [];
             }
         }
-        _Scene_Battle_onActorOk.call(this);
+        return _Scene_ItemBase_itemTargetActors.call(this);
     };
 
-    const _Scene_Battle_onActorCancel= Scene_Battle.prototype.onActorCancel;
-    Scene_Battle.prototype.onActorCancel = function() {
-        _Scene_Battle_onActorCancel.call(this);
-        if ($gameTemp.getExceptSOT()) {
-            $gameTemp.setExceptSOT(false);
-        }
-    };
-
-    const _Scene_Battle_onSkillOk = Scene_Battle.prototype.onSkillOk;
-    Scene_Battle.prototype.onSkillOk = function() {
-        const skill = this._skillWindow.item();
-        const action = BattleManager.inputtingAction();
-        if (skill.meta[TAG_NAME]) {
-            action.setSkill(skill.id);
-            if (action.needsSelection()) {
-                $gameTemp.setExceptSOT(true);
-                BattleManager.actor().setLastBattleSkill(skill);
-                this.onSelectAction();
-                return;
-            }
-        }
-        _Scene_Battle_onSkillOk.call(this);
-    };
-
-    const _Window_BattleStatus_actor = Window_BattleStatus.prototype.actor;
-    Window_BattleStatus.prototype.actor = function(index) {
-        if ($gameTemp.getExceptSOT()) {
-            $gameTemp.setStatesSOT(0, true);
-            const actor = _Window_BattleStatus_actor.call(this, index);
-            $gameTemp.setStatesSOT(0, false);
-            return actor;
-
-        }
-        return _Window_BattleStatus_actor.call(this, index);;
+    //-----------------------------------------------------------------------------
+    // Window_BattleStatus
+    //-----------------------------------------------------------------------------
+    Window_BattleStatus.prototype.targetMembersCustom = function() {
+        const subject = BattleManager._currentActor;
+        return $gameParty.battleMembers().filter(bm => bm !== subject);
     };
 
     const _Window_BattleStatus_maxItems = Window_BattleStatus.prototype.maxItems;
     Window_BattleStatus.prototype.maxItems = function() {
-        if ($gameTemp.getExceptSOT()) {
-            $gameTemp.setStatesSOT(0, true);
-            const maxItems = _Window_BattleStatus_maxItems.call(this);
-            $gameTemp.setStatesSOT(0, false);
-            return maxItems;
+        if ($gameTemp._isBattleExceptUserCustom) {
+            return this.targetMembersCustom().length;
         }
         return _Window_BattleStatus_maxItems.call(this);
     };
 
-    // overridable
-    const _Window_BattleActor_processTouch = Window_BattleActor.prototype.processTouch;
-    Window_BattleActor.prototype.processTouch = function() {
-        if (!$gameTemp.getExceptSOT()) {
-            _Window_BattleActor_processTouch.call(this);
+    const _Window_BattleStatus_actor = Window_BattleStatus.prototype.actor;
+    Window_BattleStatus.prototype.actor = function(index) {
+        if ($gameTemp._isBattleExceptUserCustom) {
+            return this.targetMembersCustom()[index];
+        }
+        return _Window_BattleStatus_actor.call(this, index);
+    };
+
+    //-----------------------------------------------------------------------------
+    // Scene_Battle（戦闘画面）
+    //-----------------------------------------------------------------------------
+    const _Scene_Battle_onActorOk = Scene_Battle.prototype.onActorOk;
+    Scene_Battle.prototype.onActorOk = function() {
+        if ($gameTemp._isBattleExceptUserCustom) {
+            $gameTemp._isBattleExceptUserCustom = false;
+            this._statusWindow.refresh();
+        }
+        _Scene_Battle_onActorOk.call(this);
+    };
+
+    const _Scene_Battle_onActorCancel = Scene_Battle.prototype.onActorCancel;
+    Scene_Battle.prototype.onActorCancel = function() {
+        _Scene_Battle_onActorCancel.call(this);
+        if ($gameTemp._isBattleExceptUserCustom) {
+            $gameTemp._isBattleExceptUserCustom = false;
+            this._statusWindow.refresh();
+        }
+    };
+
+    const _Scene_Battle_commandSkill = Scene_Battle.prototype.commandSkill;
+    Scene_Battle.prototype.commandSkill = function() {
+        $gameTemp._isBattleExceptUserCustom = false;
+        this._statusWindow.refresh();
+        _Scene_Battle_commandSkill.call(this);
+    };
+
+    const _Scene_Battle_onSkillOk = Scene_Battle.prototype.onSkillOk;
+    Scene_Battle.prototype.onSkillOk = function() {
+        $gameTemp._isBattleExceptUserCustom = false;
+        const skill = this._skillWindow.item();
+        const action = BattleManager.inputtingAction();
+        if (skill && skill.meta[TAG_NAME]) {
+            action.setSkill(skill.id);
+            if (action.isForFriend()) {
+                $gameTemp._isBattleExceptUserCustom = true;
+                this._statusWindow.refresh();
+            }
+            BattleManager.actor().setLastBattleSkill(skill);
+            this.onSelectAction();
             return;
         }
-        Window_BattleStatus.prototype.processTouch.call(this);
-        if (this.isOpenAndActive()) {
-            const target = $gameTemp.touchTarget();
-            if (target) {
-                const _members = $gameParty.battleMembers();
-                const index = _members.indexOf(target);
-                const subject = BattleManager._currentActor;
-                const members = _members.filter(bm => {
-                    return bm !== subject;
-                });
-                if (members.includes(target)) {
-                    this.select(members.indexOf(target));
-                    if ($gameTemp.touchState() === "click") {
-                        if (this._index < index) {
-                            this._index++;
-                            $gameTemp.setStatesSOT(3, true);
-                        }
-                        this.processOk();
-                    }
-                }
-                $gameTemp.clearTouchState();
-            }
-        }
+        this._statusWindow.refresh();
+        _Scene_Battle_onSkillOk.call(this);
     };
 
 })();
