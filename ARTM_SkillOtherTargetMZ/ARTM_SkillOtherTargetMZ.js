@@ -58,8 +58,8 @@
     const _Game_Temp_initialize = Game_Temp.prototype.initialize;
     Game_Temp.prototype.initialize = function() {
         _Game_Temp_initialize.call(this);
-        this._isBattleExceptUserCustom = false;
-        this._isMenuExceptUserCustom = false;
+        this._isBattleExceptUserArtm = false;
+        this._isMenuExceptUserArtm = false;
     };
 
     //-----------------------------------------------------------------------------
@@ -130,7 +130,7 @@
 
     const _Window_MenuActor_maxItems = Window_MenuActor.prototype.maxItems;
     Window_MenuActor.prototype.maxItems = function() {
-        if ($gameTemp._isMenuExceptUserCustom) {
+        if ($gameTemp._isMenuExceptUserArtm) {
             return this.targetMembersCustom().length;
         }
         return _Window_MenuActor_maxItems.call(this);
@@ -138,7 +138,7 @@
 
     const _Window_MenuActor_actor = Window_MenuActor.prototype.actor;
     Window_MenuActor.prototype.actor = function(index) {
-        if ($gameTemp._isMenuExceptUserCustom) {
+        if ($gameTemp._isMenuExceptUserArtm) {
             return this.targetMembersCustom()[index];
         }
         return _Window_MenuActor_actor.call(this, index);
@@ -151,10 +151,10 @@
     Scene_ItemBase.prototype.showActorWindow = function() {
         const item = this.item();
         if (DataManager.isSkill(item) && item.meta[TAG_NAME]) {
-            $gameTemp._isMenuExceptUserCustom = true;
+            $gameTemp._isMenuExceptUserArtm = true;
             this._actorWindow.refresh();
         } else {
-            $gameTemp._isMenuExceptUserCustom = false;
+            $gameTemp._isMenuExceptUserArtm = false;
             this._actorWindow.refresh();
         }
         _Scene_ItemBase_showActorWindow.call(this);
@@ -162,8 +162,8 @@
 
     const _Scene_ItemBase_hideActorWindow = Scene_ItemBase.prototype.hideActorWindow;
     Scene_ItemBase.prototype.hideActorWindow = function() {
-        const needRefresh = $gameTemp._isMenuExceptUserCustom;
-        $gameTemp._isMenuExceptUserCustom = false;
+        const needRefresh = $gameTemp._isMenuExceptUserArtm;
+        $gameTemp._isMenuExceptUserArtm = false;
         if (needRefresh) {
             this._actorWindow.refresh();
         }
@@ -201,7 +201,7 @@
 
     const _Window_BattleStatus_maxItems = Window_BattleStatus.prototype.maxItems;
     Window_BattleStatus.prototype.maxItems = function() {
-        if ($gameTemp._isBattleExceptUserCustom) {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
             return this.targetMembersCustom().length;
         }
         return _Window_BattleStatus_maxItems.call(this);
@@ -209,56 +209,84 @@
 
     const _Window_BattleStatus_actor = Window_BattleStatus.prototype.actor;
     Window_BattleStatus.prototype.actor = function(index) {
-        if ($gameTemp._isBattleExceptUserCustom) {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
             return this.targetMembersCustom()[index];
         }
         return _Window_BattleStatus_actor.call(this, index);
     };
 
     //-----------------------------------------------------------------------------
-    // Scene_Battle（戦闘画面）
+    // Scene_Battle
     //-----------------------------------------------------------------------------
+    const _Scene_Battle_startActorInput = Scene_Battle.prototype.startActorInput;
+    Scene_Battle.prototype.startActorInput = function() {
+        if ($gameTemp._isBattleExceptUserArtm) {
+            $gameTemp._isBattleExceptUserArtm = false;
+            this._statusWindow.refresh();
+        }
+        _Scene_Battle_startActorInput.call(this);
+    };
+
     const _Scene_Battle_onActorOk = Scene_Battle.prototype.onActorOk;
     Scene_Battle.prototype.onActorOk = function() {
-        if ($gameTemp._isBattleExceptUserCustom) {
-            $gameTemp._isBattleExceptUserCustom = false;
+        if ($gameTemp._isBattleExceptUserArtm) {
+            const action = BattleManager.inputtingAction();
+            const members = this._statusWindow.targetMembersCustom();
+            const selectedActor = members[this._actorWindow.index()];
+            if (selectedActor && action) {
+                const realIndex = $gameParty.battleMembers().indexOf(selectedActor);
+                action.setTarget(realIndex);
+            }
+            $gameTemp._isBattleExceptUserArtm = false;
             this._statusWindow.refresh();
+            this._actorWindow.hide();
+            this._skillWindow.hide();
+            this._itemWindow.hide();
+            this.selectNextCommand();
+            return;
         }
         _Scene_Battle_onActorOk.call(this);
     };
 
     const _Scene_Battle_onActorCancel = Scene_Battle.prototype.onActorCancel;
     Scene_Battle.prototype.onActorCancel = function() {
-        _Scene_Battle_onActorCancel.call(this);
-        if ($gameTemp._isBattleExceptUserCustom) {
-            $gameTemp._isBattleExceptUserCustom = false;
+        if ($gameTemp._isBattleExceptUserArtm) {
+            $gameTemp._isBattleExceptUserArtm = false;
             this._statusWindow.refresh();
         }
+        _Scene_Battle_onActorCancel.call(this);
     };
 
     const _Scene_Battle_commandSkill = Scene_Battle.prototype.commandSkill;
     Scene_Battle.prototype.commandSkill = function() {
-        $gameTemp._isBattleExceptUserCustom = false;
-        this._statusWindow.refresh();
+        if ($gameTemp._isBattleExceptUserArtm) {
+            $gameTemp._isBattleExceptUserArtm = false;
+            this._statusWindow.refresh();
+        }
         _Scene_Battle_commandSkill.call(this);
     };
 
     const _Scene_Battle_onSkillOk = Scene_Battle.prototype.onSkillOk;
     Scene_Battle.prototype.onSkillOk = function() {
-        $gameTemp._isBattleExceptUserCustom = false;
         const skill = this._skillWindow.item();
         const action = BattleManager.inputtingAction();
         if (skill && skill.meta[TAG_NAME]) {
             action.setSkill(skill.id);
-            if (action.isForFriend()) {
-                $gameTemp._isBattleExceptUserCustom = true;
+            BattleManager.actor().setLastBattleSkill(skill);
+            if (action.isForFriend() && action.isForOne()) {
+                $gameTemp._isBattleExceptUserArtm = true;
+                this._statusWindow.refresh();
+            } else {
+                $gameTemp._isBattleExceptUserArtm = false;
                 this._statusWindow.refresh();
             }
-            BattleManager.actor().setLastBattleSkill(skill);
             this.onSelectAction();
             return;
         }
-        this._statusWindow.refresh();
+        if ($gameTemp._isBattleExceptUserArtm) {
+            $gameTemp._isBattleExceptUserArtm = false;
+            this._statusWindow.refresh();
+        }
         _Scene_Battle_onSkillOk.call(this);
     };
 
