@@ -34,16 +34,15 @@
 
 (() => {
 
-    function forceRefreshActorFace(actor) {
-        if (!SceneManager._scene) return;
+    function refreshActorFaceDirect(actor) {
+        if (!actor || !SceneManager._scene) return;
         const targets = [
             SceneManager._scene._statusWindow,
             SceneManager._scene._actorWindow
         ].filter(target => target && target.contents && typeof target.faceRect === "function");
-
         if (targets.length === 0) return;
-
         const key = actor.faceName();
+        if (!key) return;
         const bitmap = ImageManager.loadFace(key);
         bitmap.addLoadListener(() => {
             const faceIndex = actor.faceIndex();
@@ -52,8 +51,8 @@
             for (const target of targets) {
                 const rect = target.faceRect(actor.index());
                 if (!rect) continue;
-                const width = rect.width || ImageManager.faceWidth;
-                const height = rect.height || ImageManager.faceHeight;
+                const width = rect.width || pw;
+                const height = rect.height || ph;
                 const sw = Math.min(width, pw);
                 const sh = Math.min(height, ph);
                 const dx = Math.floor(rect.x + Math.max(width - pw, 0) / 2);
@@ -63,34 +62,34 @@
                 target.contents.clearRect(rect.x, rect.y, sw, sh);
                 target.contents.blt(bitmap, sx, sy, sw, sh, dx, dy);
             }
-            actor._needsFaceChanging = false;
         });
+    }
+
+    function checkAndRefreshActor(actor) {
+        if (!actor || !actor.checkFaceChange_Artm) return;
+        actor.checkFaceChange_Artm();
+        if (actor._needsFaceChanging) {
+            actor._needsFaceChanging = false;
+            refreshActorFaceDirect(actor);
+        }
     }
 
     const _Game_Actor_refresh = Game_Actor.prototype.refresh;
     Game_Actor.prototype.refresh = function() {
         _Game_Actor_refresh.apply(this, arguments);
-        if ($gameParty && $gameParty.inBattle() && typeof this.checkFaceChange_Artm === "function") {
-            this.checkFaceChange_Artm();
-            if (this._needsFaceChanging) {
-                forceRefreshActorFace(this);
-            }
+        if ($gameParty && $gameParty.inBattle()) {
+            checkAndRefreshActor(this);
         }
     };
 
-    const _Window_BattleStatus_update = Window_BattleStatus.prototype.update;
-    Window_BattleStatus.prototype.update = function() {
-        _Window_BattleStatus_update.apply(this, arguments);
-        if ($gameParty && $gameParty.inBattle()) {
-            for (const actor of $gameParty.battleMembers()) {
-                if (typeof actor.checkFaceChange_Artm === "function") {
-                    actor.checkFaceChange_Artm();
-                    if (actor._needsFaceChanging) {
-                        forceRefreshActorFace(actor);
-                    }
-                }
+    if (typeof Sprite_SideBySideStateIcon !== "undefined") {
+        const _Sprite_SideBySideStateIcon_updateIcon = Sprite_SideBySideStateIcon.prototype.updateIcon;
+        Sprite_SideBySideStateIcon.prototype.updateIcon = function() {
+            _Sprite_SideBySideStateIcon_updateIcon.apply(this, arguments);
+            if ($gameParty && $gameParty.inBattle() && this._battler && this._battler.isActor()) {
+                checkAndRefreshActor(this._battler);
             }
-        }
-    };
+        };
+    }
 
 })();
