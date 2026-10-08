@@ -9,7 +9,7 @@
 <img alt="ステート画面" src="https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_StatePopupCommandMZ/StateWindow.png" />
 
 ## 競合情報
-- 木星ペンギン様作 MPP_Pseudo3DBattle.js と併用する場合 → 拙作 ARTM_StatePopCmd_Patch001.js（パッチ）を導入して下さい。
-- NUUN様作 NUUN_BattleStyleEX と併用する場合 → 拙作 ARTM_StatePopupCommandMZ_NUUN_Patch.js（パッチ）を導入して下さい。
+- 木星ペンギン様作 「MPP_Pseudo3DBattle」と併用する場合 → 拙作「ARTM_StatePopCmd_Patch001」を導入して下さい。
+- NUUN様作「NUUN_BattleStyleEX」と併用する場合 → 拙作「ARTM_StatePopupCommandMZ_NUUN_Patch」を導入して下さい。
 
 ----
