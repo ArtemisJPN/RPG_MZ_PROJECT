@@ -42,8 +42,6 @@
     const _Scene_Battle_createAllWindows = Scene_Battle.prototype.createAllWindows;
     Scene_Battle.prototype.createAllWindows = function() {
         _Scene_Battle_createAllWindows.call(this);
-
-        // ARTMウィンドウ群を最前面レイヤーに引き上げる
         const artmWindows = [
             this._targetWindowArtm,
             this._stateListWindowArtm,
@@ -55,7 +53,7 @@
             if (win && win.parent) {
                 const parent = win.parent;
                 parent.removeChild(win);
-                parent.addChild(win); // リストの末尾（最前面）に再登録
+                parent.addChild(win);
             }
         }
     };
