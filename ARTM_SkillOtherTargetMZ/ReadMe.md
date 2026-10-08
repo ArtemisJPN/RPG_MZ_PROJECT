@@ -15,3 +15,7 @@
 
 ```text
 <SOT_STATE:VALID>
+```
+
+## 競合情報
+NUUN様作 NUUN_BattleStyleEX と併用する場合・・・拙作 ARTM_SkillOtherTargetMZ_PatchNUUN.js（パッチ）を導入して下さい。
