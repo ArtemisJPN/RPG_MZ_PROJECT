@@ -26,9 +26,6 @@
  * ・サイドビュー戦闘では対象者の立ち絵をクリックorタップするだけで確認画面が開きます。
  *
  * ■ ステートのメモ欄（任意設定）
- * 【ステートの説明内容（指定がない場合はメッセージ1を自動表示）】
- *   <SPCMZ_DESC:ここに表示する説明を書きます>
- *
  * 【右ウィンドウの詳細解説・ヒント（任意設定）】
  *   <SPCMZ_DETAIL:ここに詳細な解説やヒントを書きます>
  *   ※改行を含めることも可能です
@@ -146,12 +143,6 @@
  * @type struct<BuffLevelTexts>
  * @default {"up":"上昇","down":"低下"}
  *
- * @param state_list_texts
- * @text ステート一覧文言
- * @desc 一覧画面における説明や効果なし時のテキストを設定します。
- * @type struct<StateListTexts>
- * @default {"buffDesc":"%1段階%2中","noEffect":"効果はありません。"}
- *
  * @param removal_texts
  * @text 解除条件文言
  * @desc 詳細画面で表示する各解除条件のテキストを設定します。
@@ -192,18 +183,6 @@
  * @text 低下
  * @desc デバフ（能力値低下）時の表記です。
  * @default 低下
- */
-
-/*~struct~StateListTexts:ja
- * @param buffDesc
- * @text バフ説明文
- * @desc バフの説明テキストです（%1: 段階数, %2: 上昇/低下）。
- * @default %1段階%2中
- *
- * @param noEffect
- * @text 効果なし
- * @desc 説明がない場合に表示するテキストです。
- * @default 効果はありません。
  */
 
 /*~struct~RemovalTexts:ja
@@ -309,7 +288,6 @@ function Window_BattleTarget() {
 (() => {
     const PLUGIN_NAME      = "ARTM_StatePopupCommandMZ";
     const PARAMS           = PluginManager.parameters(PLUGIN_NAME);
-    const SPCMZ_DESC       = "SPCMZ_DESC";
     const SPCMZ_DETAIL     = "SPCMZ_DETAIL";
     const SPCMZ_HIDE       = "SPCMZ_HIDE";
     const STATE_TURNS      = PARAMS.state_turns || "残り%ターン";
@@ -331,61 +309,17 @@ function Window_BattleTarget() {
     // -----------------------------------------------------
     // parameters
     // -----------------------------------------------------
-    const parseStruct = (paramJson, defaults) => {
+    const parseStruct = paramJson => {
         try {
-            const parsed = paramJson ? JSON.parse(paramJson) : {};
-            const result = Object.assign({}, defaults);
-            for (const key of Object.keys(defaults)) {
-                if (parsed[key] !== undefined && parsed[key] !== "") {
-                    result[key] = parsed[key];
-                }
-            }
-            return result;
+            return paramJson ? JSON.parse(paramJson) : {};
         } catch (e) {
-            return defaults;
+            return {};
         }
     };
-
-    const DetailSectionTitles = parseStruct(PARAMS.detail_section_titles, {
-        detail:  "【解説】",
-        removal: "【解除条件】",
-        effect:  "【主な効果】"
-    });
-
-    const BuffLevelTexts = parseStruct(PARAMS.buff_level_texts, {
-        up:   "上昇",
-        down: "低下"
-    });
-
-    const StateListTexts = parseStruct(PARAMS.state_list_texts, {
-        buffDesc: "%1段階%2中",
-        noEffect: "効果はありません。"
-    });
-
-    const RemovalTexts = parseStruct(PARAMS.removal_texts, {
-        byDamage:     "被ダメージ時解除: %1%",
-        turnTiming:   "ターン経過で解除 (%1)",
-        battleEnd:    "戦闘終了で自動解除",
-        byWalking:    "マップ歩行で解除 (%1歩)",
-        noRemoval:    "自動解除なし（永続）",
-        timingAction: "行動終了時",
-        timingTurn:   "ターン終了時",
-        buffTurn:     "ターン終了時に解除判定"
-    });
-
-    const EffectTexts = parseStruct(PARAMS.effect_texts, {
-        none:            "特別な効果はありません",
-        restriction1:    "敵を無差別に攻撃",
-        restriction2:    "味方を攻撃",
-        restriction3:    "行動不能",
-        hpRegen:         "HP再生率: %1%",
-        mpRegen:         "MP再生率: %1%",
-        paramRate:       "%1: ×%2%",
-        buffEffect:      "%1: %2段階%3 (%4%)",
-        elementRate:     "%1有効度: %2%",
-        actionPlus:      "行動回数追加: +1回 (%1%)",
-        xparamRate:      "%1: %2%"
-    });
+    const DetailSectionTitles = parseStruct(PARAMS.detail_section_titles);
+    const BuffLevelTexts = parseStruct(PARAMS.buff_level_texts);
+    const RemovalTexts = parseStruct(PARAMS.removal_texts);
+    const EffectTexts = parseStruct(PARAMS.effect_texts);
 
     // -----------------------------------------------------
     // Input
@@ -797,15 +731,6 @@ function Window_BattleTarget() {
         const isStateListActive = this._stateListWindow?.isOpenAndActive();
         if (!this.isOpenAndActive() && !isStateListActive) return false;
         if (!TouchInput.isTriggered()) return false;
-        const x = TouchInput.x;
-        const y = TouchInput.y;
-        const scene = SceneManager._scene;
-        const nameWin = scene?._stateNameWindowArtm;
-        const switchBtn = scene?._stateSwitchButtonArtm;
-        if (switchBtn && switchBtn.visible) {
-            const rect = new Rectangle(switchBtn.x, switchBtn.y, switchBtn.width, switchBtn.height);
-            if (rect.contains(x, y)) return false;
-        }
         return true;
     };
 
@@ -836,9 +761,6 @@ function Window_BattleTarget() {
         Window_Base.prototype.initialize.call(this, rect);
         this._target = null;
         this.hide();
-    };
-
-    Window_BattleStateName.prototype.processTouch = function() {
     };
 
     Window_BattleStateName.prototype.setTarget = function(target) {
@@ -1111,23 +1033,6 @@ function Window_BattleTarget() {
         this.contents.outlineWidth = 3;
     };
 
-    Window_StateList.prototype.makeDescription = function(item) {
-        if (item.meta && item.meta[SPCMZ_DESC]) {
-            return item.meta[SPCMZ_DESC];
-        }
-        if (item.id && item.message1) {
-            const name = this._target ? this._target.name() : "";
-            return item.message1.replace("%1", name);
-        }
-        if (item.paramId !== undefined) {
-            const typeText = item.level > 0 ? BuffLevelTexts.up : BuffLevelTexts.down;
-            return StateListTexts.buffDesc
-                .replace("%1", Math.abs(item.level))
-                .replace("%2", typeText);
-        }
-        return StateListTexts.noEffect;
-    };
-
     // -----------------------------------------------------
     // Window_BattleState
     // -----------------------------------------------------
@@ -1364,7 +1269,7 @@ function Window_BattleTarget() {
             conditions.push(texts.battleEnd);
         }
         if (item.removeByWalking) {
-            conditions.push(texts.byWalking.replace("%1", item.stepsToRemoveCells));
+            conditions.push(texts.byWalking.replace("%1", item.stepsToRemove));
         }
         return conditions;
     };
