@@ -4,7 +4,7 @@
 - ステートの詳細情報を表示することが出来ます。
 - 「解除条件」などと言った、各タイトル文言はプラグインパラメータで変更可能です。
 - 残りターンの表示はテキストのほか、アイコンの右下に残ターンの数値を小さく表示するアイコンバッチ表示が可能です。
-<img width="814" height="623" alt="ステート画面" src="https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_StatePopupCommandMZ/StateWindow.png" />
+<img alt="ステート画面" src="https://github.com/ArtemisJPN/RPG_MZ_PROJECT/blob/main/ARTM_StatePopupCommandMZ/StateWindow.png" />
 
 ## 競合情報
 - 木星ペンギン様作 MPP_Pseudo3DBattle.js と併用する場合 → 拙作 ARTM_StatePopCmd_Patch001.js（パッチ）を導入して下さい。
