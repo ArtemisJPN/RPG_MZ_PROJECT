@@ -10,7 +10,7 @@
 /*:ja
  * @target MZ
  * @plugindesc 【競合対策】ARTMフェイス画像 × NUUNステート横並び表示パッチ
- * @author Assistant
+ * @author Artemis
  * @base ARTM_InfluenceActorFaceMZ
  * @orderAfter ARTM_InfluenceActorFaceMZ
  * @orderAfter NUUN_StateIconSideBySide
