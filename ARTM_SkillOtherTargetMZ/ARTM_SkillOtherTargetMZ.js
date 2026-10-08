@@ -154,6 +154,47 @@
         return _Game_BattlerBase_meetsSkillConditions.call(this, skill);
     };
 
+    const _Sprite_Actor_isClickEnabled = Sprite_Actor.prototype.isClickEnabled;
+    Sprite_Actor.prototype.isClickEnabled = function() {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
+            const subject = 
+                (typeof BattleManager.actor === "function" && BattleManager.actor()) ||
+                BattleManager._currentActor;
+            if (this._actor && this._actor === subject) {
+                return false;
+            }
+        }
+        return _Sprite_Actor_isClickEnabled ? _Sprite_Actor_isClickEnabled.call(this) : Sprite_Battler.prototype.isClickEnabled.call(this);
+    };
+
+    //-----------------------------------------------------------------------------
+    // Sprite_Actor
+    //-----------------------------------------------------------------------------
+    const _Sprite_Actor_onClick = Sprite_Actor.prototype.onClick;
+    Sprite_Actor.prototype.onClick = function() {
+        if ($gameTemp && $gameTemp._isBattleExceptUserArtm) {
+            const subject =
+                (typeof BattleManager.actor === "function" && BattleManager.actor()) ||
+                BattleManager._currentActor;
+            if (this._actor && this._actor === subject) {
+                return;
+            }
+            const scene = SceneManager._scene;
+            if (scene && scene._actorWindow && scene._statusWindow) {
+                const validMembers = scene._statusWindow.targetMembersCustom();
+                const customIndex = validMembers.indexOf(this._actor);
+                if (customIndex >= 0) {
+                    scene._actorWindow.select(customIndex);
+                    scene._actorWindow.processOk();
+                    return;
+                }
+            }
+        }
+        if (_Sprite_Actor_onClick) {
+            _Sprite_Actor_onClick.call(this);
+        }
+    };
+
     //-----------------------------------------------------------------------------
     // Window_MenuActor
     //-----------------------------------------------------------------------------
