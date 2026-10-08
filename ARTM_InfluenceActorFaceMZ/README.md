@@ -19,12 +19,15 @@
 <IAF_TP:100,ActorCustom,3>  // TP100以上なら顔画像ファイル「ActorCustom」の3番目の顔（気合）
  ```
 ## 競合情報
-- NUUN様作 NUUN_StateIconSideBySide.js と併用する場合 → 拙作 ARTM_InfluenceActorFaceMZ_SideBySidePatch.js（パッチ）を導入して下さい。
+- NUUN様作「NUUN_StateIconSideBySide」と併用する場合 → 拙作「ARTM_InfluenceActorFaceMZ_SideBySidePatch」を導入して下さい。
+<br>
 
 # 2. ARTM_InfluenceEnemyImageMZ.js
 指定ステートにかかった時に、エネミーの立ち絵画像を自動変更します。
- 
+<br>
+<br>
+
 # 3. 参考情報
 ▼「みなみよつば」様のショート動画にて紹介されていますのでご参照下さい。<br>
 https://www.youtube.com/watch?v=y-3hnqQiDh8
-
+<br>
