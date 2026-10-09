@@ -932,7 +932,10 @@ function Window_BattleTarget() {
             return (
                 item &&
                 item.meta[SPCMZ_HIDE] === undefined &&
-                !this._target.isStateExpired(item.id)
+                !(
+                    item.autoRemovalTiming !== 0 &&
+                    this._target.isStateExpired(item.id)
+                )
             );
         });
         if (TURNS_SORT === "stateId") {
