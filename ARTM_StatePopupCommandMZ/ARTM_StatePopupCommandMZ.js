@@ -827,9 +827,6 @@ function Window_BattleTarget() {
     // -----------------------------------------------------
     // Window_StateList
     // -----------------------------------------------------
-    const ICON_TURNS_OFFSET_X = -2;
-    const ICON_TURNS_OFFSET_Y = -2;
-
     function Window_StateList() {
         this.initialize(...arguments);
     }
@@ -1037,19 +1034,19 @@ function Window_BattleTarget() {
 
     Window_StateList.prototype.iconTurnsRect = function(x, y) {
         const cornerX = x + ImageManager.iconWidth;
-        const cornerY = y + 2 + ImageManager.iconHeight;
+        const cornerY = y + ImageManager.iconHeight;
         const boxW = 20;
         const boxH = this.lineHeight();
         return new Rectangle(
-            Math.round(cornerX - boxW / 2) + ICON_TURNS_OFFSET_X,
-            Math.round(cornerY - boxH / 2) + ICON_TURNS_OFFSET_Y,
+            Math.round(cornerX - boxW / 2),
+            Math.round(cornerY - boxH / 2),
             boxW,
             boxH
         );
     };
 
     Window_StateList.prototype.setupIconTurnsFont = function() {
-        this.contents.fontSize = 14;
+        this.contents.fontSize = 16;
         this.changeTextColor("rgba(" + TURNS_FONT_COLOR + ")");
         this.contents.outlineColor = "rgba(0, 0, 0, 0.9)";
         this.contents.outlineWidth = 3;
