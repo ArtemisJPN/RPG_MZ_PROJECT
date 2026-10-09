@@ -25,6 +25,18 @@
  *   対象者(味方or敵）のステート・バフ確認画面を開きます。
  * ・サイドビュー戦闘では対象者の立ち絵をクリックorタップするだけで確認画面が開きます。
  *
+ * ■ プレイヤーへの操作案内について（推奨）
+ * マウス操作時、ステート一覧はカーソルを合わせる（ホバーする）だけで
+ * 右側に詳細が表示されますが、以下の操作テクニックをゲーム内のチュートリアルや
+ * 説明書などでプレイヤーにお伝えいただくことをおすすめします。
+ *
+ * 【マウスを押したまま（ドラッグ）移動】
+ *   ステート一覧で「マウスの左ボタンを押したまま」カーソルを動かすと、
+ *   他のステートへの誤選択を防いだまま（選択状態を保持したまま）
+ *   右側の詳細ウィンドウへ安全にマウスを移動させることができます。
+ *   詳細文が長くてスクロールしたい時などに快適に操作できるようになります。
+ *   （ボタンを離せば、通常のホバー選択に戻ります）
+ *
  * ■ ステートのメモ欄（任意設定）
  * 【右ウィンドウの詳細解説・ヒント（任意設定）】
  *   <SPCMZ_DETAIL:ここに詳細な解説やヒントを書きます>
@@ -877,8 +889,15 @@ function Window_BattleTarget() {
         }
     };
 
+    Window_StateList.prototype.onTouchSelect = function(trigger) {
+        if (!trigger && TouchInput.isPressed()) {
+            return;
+        }
+        Window_Selectable.prototype.onTouchSelect.call(this, trigger);
+    };
+
     Window_StateList.prototype.maxCols = function() {
-        return 1;
+        return TURNS_DISPLAY_MODE === "icon" ? 2 : 1;
     };
 
     Window_StateList.prototype.colSpacing = function() {
