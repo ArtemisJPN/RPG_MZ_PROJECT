@@ -1415,7 +1415,7 @@ function Window_BattleTarget() {
     };
 
     Window_BattleStateDetail.prototype.update = function() {
-        Window_Scrollable.prototype.update.call(this);
+        Window_Base.prototype.update.call(this);
         if (this.visible && this.isTouchedInsideFrame()) {
             this.processTouchScroll();
             this.processWheelScroll();
