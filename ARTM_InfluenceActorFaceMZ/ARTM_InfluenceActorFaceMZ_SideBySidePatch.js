@@ -1,6 +1,6 @@
 // ===================================================
 // ARTM_InfluenceActorFaceMZ_SideBySidePatch
-// Copyright (c) 2026
+// Copyright (c) 2026 Artemis
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // ===================================================
@@ -18,7 +18,7 @@
  * @help ARTM_InfluenceActorFaceMZ_SideBySidePatch.js
  * 
  * ■ プラグインの目的・対象
- * 「ARTM_InfluenceActorFaceMZ」(Artemis様) と
+ * 「ARTM_InfluenceActorFaceMZ」と
  * 「NUUN_StateIconSideBySide」(NUUN様) を併用した際に、
  * HPが0になった時や戦闘不能ステートが付与された瞬間に
  * フェイス画像が切り替わらなくなる競合を解消します。
