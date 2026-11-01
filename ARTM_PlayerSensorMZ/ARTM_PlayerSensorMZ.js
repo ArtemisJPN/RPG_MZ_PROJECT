@@ -2022,7 +2022,7 @@
     Game_Event.prototype.setupSensor = function() {
         const pattern = /<(.?)(?:psensor)(l|f|s|d)?(?:\:)(\\v\[\d+\]|\d+)([ 0-9a-z\[\]\\]*)?>/i
         const event = this.event();
-        if (!event.note) return;
+        if (!event || !event.note) return;
         const note = event.note.toLowerCase().split(/ (?=<)/);
         const cnt = note.length;
         for (let i = 0;i < cnt;i++) {
