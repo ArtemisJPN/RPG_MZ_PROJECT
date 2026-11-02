@@ -4,6 +4,7 @@
 // This software is released under the MIT license.
 // http://opensource.org/licenses/mit-license.php
 // -------------
+// 1.3.7 マップデータを編集した後にロードするとブラックアウトする不備を修正
 // 1.3.6 既存機能のAIレビュー指摘対応
 // 1.3.5 追跡状態の復元機能のAIレビュー指摘対応
 // 1.3.4 発見時フキダシループ機能のAIレビュー指摘対応
@@ -1306,14 +1307,6 @@
         this._trackingResume_Artm = {};
     };
 
-    const _Game_System_onAfterLoad = Game_System.prototype.onAfterLoad;
-    Game_System.prototype.onAfterLoad = function() {
-        _Game_System_onAfterLoad.call(this);
-        if (!this._trackingResume_Artm) {
-            this._trackingResume_Artm = {};
-        }
-    };
-
     Game_System.prototype.startSensor = function(type) {
         this.setSensorStart(true);
         this.setSensorStatusAll(1, type || 0);
@@ -1540,7 +1533,7 @@
     //=========================================================================
     const _Game_Player_reserveTransfer = Game_Player.prototype.reserveTransfer;
     Game_Player.prototype.reserveTransfer = function(mapId, x, y, d, fadeType) {
-        if (CEC(DefLocationReset) &&
+        if (DefLocationReset &&
             !$gameParty.inBattle() && !$gameMessage.isBusy()) {
              $gameSystem.resetSensor();
         } else if (CEC(DefTrackingResume)) {
@@ -1987,7 +1980,7 @@
             $gameSystem.startSensor();
         }
         // 追跡状態の復元を行う
-        if (CEC(DefTrackingResume)) {
+        if (DefTrackingResume) {
             const resumeData = $gameSystem.getTrackingResume_Artm();
             if (!resumeData) return;
             this.events().forEach(event => {
