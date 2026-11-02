@@ -1306,6 +1306,14 @@
         this._trackingResume_Artm = {};
     };
 
+    const _Game_System_onAfterLoad = Game_System.prototype.onAfterLoad;
+    Game_System.prototype.onAfterLoad = function() {
+        _Game_System_onAfterLoad.call(this);
+        if (!this._trackingResume_Artm) {
+            this._trackingResume_Artm = {};
+        }
+    };
+
     Game_System.prototype.startSensor = function(type) {
         this.setSensorStart(true);
         this.setSensorStatusAll(1, type || 0);
